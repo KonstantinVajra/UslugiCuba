@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# IDE configs
+.idea/
+.vscode/
+
+# Secrets
+.env
+
+# gettext compiled
+locales/**/*.mo

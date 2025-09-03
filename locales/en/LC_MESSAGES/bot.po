@@ -1,0 +1,55 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "start_msg"
+msgstr "Welcome! Choose a service to begin."
+
+msgid "choose_service"
+msgstr "Please choose a service:"
+
+msgid "enter_pickup"
+msgstr "Enter pickup location:"
+
+msgid "enter_dropoff"
+msgstr "Enter dropoff location:"
+
+msgid "enter_datetime"
+msgstr "Enter time and date (or say 'ASAP'):"
+
+msgid "confirm_summary"
+msgstr "Please confirm your order"
+
+msgid "confirm_prompt"
+msgstr "Send ✅ to confirm, or ❌ to cancel."
+
+msgid "Taxi"
+msgstr "Taxi"
+
+msgid "Retro car"
+msgstr "Retro car"
+
+msgid "Guide"
+msgstr "Guide"
+
+msgid "Photographer"
+msgstr "Photographer"
+
+msgid "service"
+msgstr "Service"
+
+msgid "pickup"
+msgstr "Pickup location"
+
+msgid "dropoff"
+msgstr "Dropoff location"
+
+msgid "datetime"
+msgstr "Date & Time"
+
+msgid "order_confirmed"
+msgstr "Your order has been confirmed! A provider will be assigned shortly."
+
+msgid "order_cancelled"
+msgstr "Your order has been cancelled."

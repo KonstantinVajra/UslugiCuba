@@ -1,0 +1,55 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: es\n"
+
+msgid "start_msg"
+msgstr "¡Bienvenido! Elija un servicio para comenzar."
+
+msgid "choose_service"
+msgstr "Por favor, elige un servicio:"
+
+msgid "enter_pickup"
+msgstr "Ingrese el lugar de recogida:"
+
+msgid "enter_dropoff"
+msgstr "Ingrese el destino:"
+
+msgid "enter_datetime"
+msgstr "Ingrese la fecha y hora (o escriba 'lo antes posible'):"
+
+msgid "confirm_summary"
+msgstr "Por favor confirme los detalles de su pedido"
+
+msgid "confirm_prompt"
+msgstr "Envíe ✅ para confirmar o ❌ para cancelar."
+
+msgid "Taxi"
+msgstr "Taxi"
+
+msgid "Retro car"
+msgstr "Coche retro"
+
+msgid "Guide"
+msgstr "Guía"
+
+msgid "Photographer"
+msgstr "Fotógrafo"
+
+msgid "service"
+msgstr "Servicio"
+
+msgid "pickup"
+msgstr "Desde"
+
+msgid "dropoff"
+msgstr "Hacia"
+
+msgid "datetime"
+msgstr "Fecha y hora"
+
+msgid "order_confirmed"
+msgstr "¡Su pedido ha sido confirmado! Un proveedor será asignado pronto."
+
+msgid "order_cancelled"
+msgstr "Su pedido ha sido cancelado."

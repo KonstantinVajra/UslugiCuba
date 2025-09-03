@@ -1,0 +1,93 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ru\n"
+
+msgid "start_msg"
+msgstr "Добро пожаловать! Выберите услугу, чтобы начать."
+
+msgid "choose_service"
+msgstr "Пожалуйста, выберите услугу:"
+
+msgid "enter_pickup"
+msgstr "Введите место отправления:"
+
+msgid "enter_dropoff"
+msgstr "Введите место назначения:"
+
+msgid "enter_datetime"
+msgstr "Введите дату и время (или напишите 'как можно скорее'):"
+
+msgid "confirm_summary"
+msgstr "Пожалуйста, подтвердите детали заказа"
+
+msgid "confirm_prompt"
+msgstr "Отправьте ✅ для подтверждения или ❌ для отмены."
+
+msgid "Taxi"
+msgstr "Такси"
+
+msgid "Retro car"
+msgstr "Ретро-авто"
+
+msgid "Guide"
+msgstr "Гид"
+
+msgid "Photographer"
+msgstr "Фотограф"
+
+msgid "service"
+msgstr "Услуга"
+
+msgid "pickup"
+msgstr "Откуда"
+
+msgid "dropoff"
+msgstr "Куда"
+
+msgid "datetime"
+msgstr "Дата и время"
+
+msgid "order_confirmed"
+msgstr "Ваш заказ подтверждён! Исполнитель будет назначен в ближайшее время."
+
+msgid "order_cancelled"
+msgstr "Ваш заказ был отменён."
+
+msgid "enter_pickup"
+msgstr "Выберите место отправления:"
+
+msgid "enter_dropoff"
+msgstr "Выберите место прибытия:"
+
+msgid "pickup_chosen"
+msgstr "Место посадки выбрано"
+
+msgid "dropoff_chosen"
+msgstr "Место прибытия выбрано"
+
+msgid "choose_date"
+msgstr "📅 Выберите дату:"
+
+msgid "choose_hour"
+msgstr "🕐 Выберите час:"
+
+msgid "choose_minute"
+msgstr "🕓 Выберите минуты:"
+
+msgid "chosen_date"
+msgstr "Дата выбрана"
+
+msgid "chosen_hour"
+msgstr "Час выбран"
+
+msgid "chosen_time"
+msgstr "Время выбрано"
+
+msgid "confirm_time"
+msgstr "Подтвердите дату и время"
+
+msgid "Today"
+msgstr "Сегодня"
+
+
