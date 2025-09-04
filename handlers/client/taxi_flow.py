@@ -223,17 +223,34 @@ async def choose_time(callback: CallbackQuery, state: FSMContext):
     _, hhmm = callback.data.split(":", 1)  # "now" или "HH:MM"
     await state.update_data(when=hhmm)
     data = await state.get_data()
+
+    # считаем цену сразу для показа в карточке
+    try:
+        price, payload = quote_price(
+            service="taxi",
+            from_kind=data['pickup']['kind'], from_id=data['pickup']['id'],
+            to_kind=data['dropoff']['kind'], to_id=data['dropoff']['id'],
+            when_hhmm=hhmm,
+            options=data.get("options", {}),
+        )
+        # сохраним, если захочешь не пересчитывать на подтверждении
+        await state.update_data(price_quote=price, price_payload=payload)
+    except Exception:
+        await callback.message.answer("❗ Ошибка при расчёте цены. Попробуйте ещё раз.")
+        return
+
     text = (
-        "Проверьте заказ:\n"
+        "📋 Проверьте заказ:\n"
         f"• Откуда: {data['pickup']['name']}\n"
         f"• Куда: {data['dropoff']['name']}\n"
         f"• Время: {'сейчас' if hhmm=='now' else hhmm}\n"
         f"• Пассажиры: 1\n"
-        f"• Цена: будет рассчитана по правилу маршрута\n\n"
+        f"💵 Цена: {price} USD\n\n"
         f"Подтвердить?"
     )
     await callback.message.edit_text(text, reply_markup=kb_confirm())
     await state.set_state(TaxiOrder.confirm)
+
 
 
 # ───────────────── CONFIRM ─────────────────

@@ -15,6 +15,10 @@ from keyboards.locations import (
     HOTEL_NAMES, RESTAURANT_NAMES,
     AIRPORT_NAMES, airport_list_keyboard
 )
+from handlers.client.taxi_flow import TaxiOrder
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pricing import quote_price            # (импорт вверху файла, если ещё нет)
+from keyboards.locations import HOTEL_NAMES, RESTAURANT_NAMES, AIRPORT_NAMES
 
 router = Router()
 
@@ -36,9 +40,12 @@ async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: d
     }
     selected_service = service_map.get(callback.data, callback.data)
     await state.update_data(service=selected_service)
+
+    # 👉 ВАЖНО: оставляем родной поток с категориями (там есть Ресторан)
     await callback.message.answer(_("enter_pickup"), reply_markup=pickup_category_keyboard())
     await state.set_state(OrderServiceState.entering_pickup)
     await callback.answer()
+
 
 
 # Pickup: Airport
@@ -229,6 +236,7 @@ async def handle_hour_selection(callback: CallbackQuery, state: FSMContext, _: d
     await callback.answer()
 
 
+
 @router.callback_query(F.data.startswith("minute_"), OrderServiceState.entering_minute)
 async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _: dict):
     minute = callback.data.split("_", 1)[1]
@@ -243,14 +251,43 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
     datetime_str = f"{date} {hour}:{minute}"
     await state.update_data(datetime=datetime_str)
 
+    # 👉 Определяем виды локаций для прайса
+    def kind_of(name: str) -> str:
+        if name in HOTEL_NAMES:
+            return "hotel"
+        if name in RESTAURANT_NAMES:
+            return "restaurant"
+        if name in AIRPORT_NAMES or "Аэропорт" in name:
+            return "airport"
+        return "city"
+
+    from_kind = kind_of(pickup)
+    to_kind   = kind_of(dropoff)
+    when_hhmm = f"{hour}:{minute}"
+
+    # 👉 Считаем цену (service slug жёстко 'taxi' для этого сценария)
+    try:
+        price, payload = quote_price(
+            service="taxi",
+            from_kind=from_kind, from_id=None,   # id необязательны, сработает kind->kind
+            to_kind=to_kind,     to_id=None,
+            when_hhmm=when_hhmm,
+            options=data.get("options", {}),
+        )
+        # Можно сохранить для_confirm:
+        await state.update_data(price_quote=price, price_payload=payload)
+        price_line = f"💵 Цена: {price} USD\n"
+    except Exception:
+        price_line = "💵 Цена: —\n"
+
     # Текст карточки
     order_summary = _('order_summary')
-    service_txt = _('service')
-    from_txt = _('from')
-    to_txt = _('to')
-    date_txt = _('date')
-    time_txt = _('time')
-    confirm_prompt = _('confirm_prompt')
+    service_txt   = _('service')
+    from_txt      = _('from')
+    to_txt        = _('to')
+    date_txt      = _('date')
+    time_txt      = _('time')
+    confirm_prompt= _('confirm_prompt')
 
     summary = (
         f"📋 {order_summary}:\n\n"
@@ -258,17 +295,18 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
         f"📍 {from_txt}: {pickup}\n"
         f"📍 {to_txt}: {dropoff}\n"
         f"📅 {date_txt}: {date}\n"
-        f"⏰ {time_txt}: {hour}:{minute}\n\n"
+        f"⏰ {time_txt}: {hour}:{minute}\n"
+        f"{price_line}\n"                # 👉 вставили цену
         f"{confirm_prompt}"
     )
 
-    # Кнопка
+    # Кнопки подтверждения — без изменений
     confirm_btn = _("confirm_order_btn")
-    cancel_btn = _("cancel")
-    confirm_kb = InlineKeyboardMarkup(
+    cancel_btn  = _("cancel")
+    confirm_kb  = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ " + confirm_btn, callback_data="confirm_order")],
-            [InlineKeyboardButton(text="❌ " + cancel_btn, callback_data="cancel_order")]
+            [InlineKeyboardButton(text="❌ " + cancel_btn,  callback_data="cancel_order")]
         ]
     )
 
