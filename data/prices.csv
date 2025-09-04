@@ -1,0 +1,6 @@
+service,from_kind,from_id,to_kind,to_id,base_usd,notes
+taxi,airport,vra,hotel,ibv,35,"Аэропорт Варадеро → Iberostar Varadero (день; ночь +20%)"
+taxi,airport,vra,city,Varadero,30,"Аэропорт Варадеро → город Варадеро"
+taxi,airport,hav,city,Havana,25,"Аэропорт Гаваны → Гавана"
+taxi,city,Havana,city,Havana,10,"Внутри города Гавана"
+taxi,airport,,hotel,,30,"По видам: airport→hotel (общий тариф)"

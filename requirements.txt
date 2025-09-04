@@ -1,4 +1,6 @@
 aiogram==3.4.1
 python-dotenv
+asyncpg>=0.29
+python-dotenv>=1.0
 babel
 polib

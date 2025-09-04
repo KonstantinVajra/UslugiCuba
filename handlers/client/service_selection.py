@@ -8,6 +8,7 @@ from keyboards.client import (
     hour_selection_keyboard,
     minute_selection_keyboard,
 )
+
 from keyboards.locations import (
     pickup_category_keyboard, dropoff_category_keyboard,
     hotel_list_keyboard, restaurant_list_keyboard,

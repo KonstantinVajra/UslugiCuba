@@ -1,24 +1,35 @@
+# bots/client_bot.py
+import asyncio
+import logging
 from aiogram import Bot, Dispatcher
-from config import config
+from aiogram.fsm.storage.memory import MemoryStorage
+
+from config import CLIENT_BOT_TOKEN
 from middlewares.i18n import I18nMiddleware
-from handlers.client import service_selection
+from handlers.client import service_selection, taxi_flow
 
-bot = Bot(token=config.CLIENT_BOT_TOKEN)
-dp = Dispatcher()
+# +++ ЛОГИ
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("client_bot")
 
-# Подключаем роутеры
-dp.include_router(service_selection.router)
+# +++ ПИНГ БД
+from repo.orders import ping_db
 
-# Подключаем мидлвару для сообщений и callback'ов
-dp.message.middleware(I18nMiddleware())
-dp.callback_query.middleware(I18nMiddleware())
 
 async def run_client_bot():
-    # ВАЖНО: снимаем вебхук и выбрасываем «висящие» апдейты перед polling
-    await bot.delete_webhook(drop_pending_updates=True)
+    bot = Bot(token=CLIENT_BOT_TOKEN, parse_mode="HTML")
+    dp = Dispatcher(storage=MemoryStorage())
 
-    # Стартуем polling
-    await dp.start_polling(
-        bot,
-        allowed_updates=dp.resolve_used_update_types()
-    )
+    dp.message.middleware(I18nMiddleware())
+    dp.callback_query.middleware(I18nMiddleware())
+
+    dp.include_router(service_selection.router)
+    dp.include_router(taxi_flow.router)
+
+    # Проверяем БД перед запуском polling (упадём сразу, если что)
+    await ping_db()
+    logger.info("DB OK. Starting polling...")
+
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)

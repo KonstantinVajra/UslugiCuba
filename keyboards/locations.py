@@ -5,6 +5,7 @@ from itertools import zip_longest
 # Добавь список аэропортов
 AIRPORT_NAMES = [
     "Аэропорт Варадеро (VRA)",
+    "Аэропорт Гаваны (HAV)",
 ]
 
 
