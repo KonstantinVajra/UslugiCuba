@@ -8,6 +8,7 @@ from config import CLIENT_BOT_TOKEN
 from middlewares.i18n import I18nMiddleware
 from handlers.client import service_selection, taxi_flow
 
+
 # +++ ЛОГИ
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -28,7 +29,10 @@ async def run_client_bot():
     dp.include_router(taxi_flow.router)
 
     # Проверяем БД перед запуском polling (упадём сразу, если что)
-    await ping_db()
+    try:
+        await ping_db()
+    except Exception as e:
+        logging.warning("DB not reachable: %s — starting in NO-DB mode", e)
     logger.info("DB OK. Starting polling...")
 
     await bot.delete_webhook(drop_pending_updates=True)

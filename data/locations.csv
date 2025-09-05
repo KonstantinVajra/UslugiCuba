@@ -1,5 +1,83 @@
-id,kind,name,city
-vra,airport,Varadero Airport,Varadero
-hav,airport,Jose Marti Airport,Havana
-ibv,hotel,Iberostar Varadero,Varadero
-mch,hotel,Melia Cohiba,Havana
+kind,id,name,zone
+airport,vra,Varadero Airport (VRA),A
+airport,hav,Havana Airport (HAV),D
+hotel,grand_aston_paredon,Grand Aston Paredon,A
+hotel,puntarena,Puntarena,A
+hotel,selectim_family_resort_varadero,Selectim Family Resort Varadero,A
+hotel,barcelo_solymar,Barcelo Solymar,B
+hotel,occidental_arenas_blancas,Occidental Arenas Blancas,B
+hotel,palma_real,Palma Real,B
+hotel,roc_barlovento,Roc Barlovento,B
+hotel,roc_varadero,Roc Varadero,B
+hotel,starfish_cuatro_palmas,Starfish Cuatro Palmas,B
+hotel,villa_tortuga,Villa Tortuga,B
+hotel,arenas_doradas,Arenas Doradas,C
+hotel,blau_varadero,Blau Varadero,C
+hotel,brisas_del_caribe,Brisas del Caribe,C
+hotel,iberostar_bella_costa,Iberostar Bella Costa,C
+hotel,iberostar_bella_vista,Iberostar Bella Vista,C
+hotel,iberostar_tainos,Iberostar Tainos,C
+hotel,las_morals,Las Morals,C
+hotel,los_cactus_varadero,Los Cactus Varadero,C
+hotel,melia_international,Melia International,C
+hotel,melia_las_americas,Melia Las Americas,C
+hotel,melia_las_antillas,Melia Las Antillas,C
+hotel,melia_varadero,Melia Varadero,C
+hotel,muthu_playa_varadero,Muthu Playa Varadero,C
+hotel,playa_vista_azul,Playa Vista Azul,C
+hotel,roc_arenas_doradas,Roc Arenas Doradas,C
+hotel,sirenis_tropical_varadero,Sirenis Tropical Varadero,C
+hotel,sol_caribe_beach,Sol Caribe Beach,C
+hotel,sol_palmeras,Sol Palmeras,C
+hotel,sol_varadero,Sol Varadero,C
+hotel,starfish_varadero,Starfish Varadero,C
+hotel,tuxpan_hotel,Tuxpan Hotel,C
+hotel,villa_cuba,Villa Cuba,C
+hotel,grandmemories_santuari,GrandMemories & Santuari,D
+hotel,iberostar_laguna_azul,Iberostar Laguna Azul,D
+hotel,iberostar_playa_alameda,Iberostar Playa Alameda,D
+hotel,iberostar_selection,Iberostar Selection,D
+hotel,melia_marina_varadero,Melia Marina Varadero,D
+hotel,melia_peninsula,Melia Peninsula,D
+hotel,paradisus_princess,Paradisus Princess,D
+hotel,paradisus_varadero,Paradisus Varadero,D
+hotel,resonans_memoris_varadero,Resonans Memoris Varadero,D
+hotel,royalton_hicacos,Royalton Hicacos,D
+hotel,valentin_el_patriarca,Valentin el Patriarca,D
+restaurant,la_cava_62_улица,La Cava (62 улица),B
+restaurant,рудольфо_и_его_лобстеры_28я_29я,Рудольфо и его лобстеры. (28я-29я),B
+restaurant,bolshoi_62я_улица,Bolshoi. (62я улица),B
+restaurant,el_toro_25я_улица,El Toro (25я улица),B
+restaurant,wacos_club,Wacos Club,B
+restaurant,бар_floridita,Бар Floridita,B
+restaurant,вилла_дюпона_коктейли,Вилла Дюпона. Коктейли,B
+restaurant,la_vicaria_38я_улица,La Vicaria.(38я улица),B
+restaurant,la_bodeguita_del_medio_varadero_40я_ул,La bodeguita del medio(Varadero 40я ул),B
+restaurant,casa_de_al_аль_капоне_1я_улица,Casa de Al. Аль Капоне. (1я улица),B
+restaurant,el_criollo_18я_улица,El Criollo (18я улица ),B
+restaurant,vernissage_36я_улица,Vernissage. 36я улица,B
+restaurant,la_terazza_cuba_18я_улица,La Terazza Cuba. 18я улица.,B
+restaurant,varadero_60_60я_улица,Varadero 60. 60я улица,B
+restaurant,пивоварня_factoria_43,Пивоварня Factoria 43,B
+restaurant,rigo_s_pizza,Rigo's pizza,B
+restaurant,43_5_43я_улица,43.5. (43я улица),B
+restaurant,la_vaca_rosada_розовая_корова_21я_ул,La Vaca Rosada. Розовая Корова. (21я ул),B
+restaurant,pina_colada_la_vigia,Pina Colada La Vigia,B
+restaurant,el_aljibe,El Aljibe,B
+restaurant,el_ancla_62я_улица,El Ancla. 62я улица,B
+restaurant,el_rancho_58я_улица,El Rancho 58я улица,B
+restaurant,marisquería_laurent_31я_улица,Marisquería Laurent. (31я улица),B
+restaurant,la_barbacoa,La Barbacoa,B
+restaurant,mistique_casa_perla,Mistique Casa Perla,B
+restaurant,salsa_suarez_31я_улица,Salsa Suarez. (31я улица),B
+restaurant,castell_nuovo_terazza,Castell Nuovo Terazza,B
+restaurant,bar_galeón_53я_улица,Bar Galeón. (53я улица),B
+restaurant,клуб_la_comparsita,Клуб La Comparsita,B
+restaurant,beatles_bar,Beatles Bar,B
+restaurant,el_melaito,El Melaito,B
+restaurant,don_alex_31я_улица,Don Alex. 31я улица,B
+restaurant,бар_клуб_calle_62_62я_улица,Бар клуб Calle 62 (62я улица),B
+restaurant,la_rampa_43я_улица,La rampa. 43я улица,B
+restaurant,la_gruta_del_vino_59я_улица_в_парке_хосоне,La gruta del vino. (59я улица. В парке Хосоне),B
+restaurant,el_caney_40я_улица,El Caney. 40я улица.,B
+restaurant,compas_bar_34я_улица,Compas Bar. 34я улица,B
