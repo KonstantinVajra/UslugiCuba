@@ -224,36 +224,58 @@ async def drop_to_hotel(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(TaxiOrder.when, F.data.startswith("time:"))
 async def choose_time(callback: CallbackQuery, state: FSMContext):
-    _, hhmm = callback.data.split(":", 1)  # "now" или "HH:MM"
-    await state.update_data(when=hhmm)
+    # data формата: "time:now" или "time:HH:MM"
+    _, hhmm = callback.data.split(":", 1)
+
+    if hhmm == "now":
+        when_hhmm = "now"
+        selected_hour = None
+        selected_minute = None
+        when_label = "сейчас"
+    else:
+        try:
+            hh, mm = hhmm.split(":", 1)
+            when_hhmm = f"{int(hh):02d}:{int(mm):02d}"
+            selected_hour = f"{int(hh):02d}"
+            selected_minute = f"{int(mm):02d}"
+            when_label = when_hhmm
+        except Exception:
+            await callback.answer("Некорректное время", show_alert=True)
+            return
+
+    # сохраним выбор времени в FSM
+    await state.update_data(when=when_hhmm, selected_hour=selected_hour, selected_minute=selected_minute)
     data = await state.get_data()
 
-    # считаем цену сразу для показа в карточке
+    # считаем цену (зонный прайсинг из pricing.py)
     try:
         price, payload = quote_price(
             service="taxi",
             from_kind=data['pickup']['kind'], from_id=data['pickup']['id'],
             to_kind=data['dropoff']['kind'], to_id=data['dropoff']['id'],
-            when_hhmm=hhmm,
+            when_hhmm=when_hhmm,
             options=data.get("options", {}),
         )
-        # сохраним, если захочешь не пересчитывать на подтверждении
         await state.update_data(price_quote=price, price_payload=payload)
     except Exception:
         await callback.message.answer("❗ Ошибка при расчёте цены. Попробуйте ещё раз.")
+        await callback.answer()
         return
 
     text = (
         "📋 Проверьте заказ:\n"
-        f"• Откуда: {data['pickup']['name']}\n"
-        f"• Куда: {data['dropoff']['name']}\n"
-        f"• Время: {'сейчас' if hhmm=='now' else hhmm}\n"
-        f"• Пассажиры: 1\n"
+        f"🛎️ Услуга: Такси\n"
+        f"📍 from: {data['pickup']['name']}\n"
+        f"📍 to: {data['dropoff']['name']}\n"
+        f"📅 date: {data.get('selected_date','') or '-'}\n"
+        f"⏰ time: {when_label}\n"
         f"💵 Цена: {price} USD\n\n"
-        f"Подтвердить?"
+        "Отправьте ✅ для подтверждения или ❌ для отмены."
     )
+
     await callback.message.edit_text(text, reply_markup=kb_confirm())
     await state.set_state(TaxiOrder.confirm)
+    await callback.answer()
 
 
 

@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardButton
+from callbacks.common import BackCb
 
 def date_selection_keyboard(_) -> InlineKeyboardMarkup:
     today = datetime.now().date()
@@ -17,6 +19,13 @@ def date_selection_keyboard(_) -> InlineKeyboardMarkup:
     keyboard = [buttons[i:i + 3] for i in range(0, len(buttons), 3)]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def confirm_keyboard():
+    kb = InlineKeyboardBuilder()
+    kb.button(text="✅ Подтвердить", callback_data="confirm_order")
+    kb.button(text="❌ Отмена",     callback_data="cancel_order")
+    kb.adjust(2)
+    kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data=BackCb().pack()))
+    return kb.as_markup()
 
 def hour_selection_keyboard() -> InlineKeyboardMarkup:
     buttons = [

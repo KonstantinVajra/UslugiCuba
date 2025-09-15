@@ -21,6 +21,7 @@ from pricing import quote_price            # (импорт вверху файл
 from keyboards.locations import HOTEL_NAMES, RESTAURANT_NAMES, AIRPORT_NAMES
 import os, csv, re
 from functools import lru_cache
+from callbacks.common import BackCb
 
 router = Router()
 
@@ -365,14 +366,48 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
     )
 
     confirm_btn = _("confirm_order_btn")
-    cancel_btn  = _("cancel")
-    confirm_kb  = InlineKeyboardMarkup(
+    cancel_btn = _("cancel")
+    confirm_kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="✅ " + confirm_btn, callback_data="confirm_order")],
-            [InlineKeyboardButton(text="❌ " + cancel_btn,  callback_data="cancel_order")]
+            [InlineKeyboardButton(text="✅ " + _("confirm_order_btn"), callback_data="confirm_order")],
+            [InlineKeyboardButton(text="❌ " + _("cancel"), callback_data="cancel_order")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data=BackCb().pack())],
         ]
     )
 
     await callback.message.answer(summary, reply_markup=confirm_kb)
     await state.set_state(OrderServiceState.confirming_order)
+    await callback.answer()
+
+@router.callback_query(BackCb.filter())
+async def back_in_service_flow(callback: CallbackQuery, state: FSMContext, _: dict):
+    cur = await state.get_state()
+
+    if cur == OrderServiceState.confirming_order:
+        await state.set_state(OrderServiceState.entering_minute)
+        await callback.message.edit_text(_("choose_minute"), reply_markup=minute_selection_keyboard())
+    elif cur == OrderServiceState.entering_minute:
+        await state.set_state(OrderServiceState.entering_hour)
+        await callback.message.edit_text(_("choose_hour"), reply_markup=hour_selection_keyboard())
+    elif cur == OrderServiceState.entering_hour:
+        await state.set_state(OrderServiceState.entering_date)
+        await callback.message.edit_text(_("choose_date"), reply_markup=date_selection_keyboard(_))
+    else:
+        await callback.answer()
+        return
+
+    await callback.answer()
+
+
+
+# Отмена заказа (чтобы не было Unhandled callback: cancel_order)
+@router.callback_query(F.data == "cancel_order")
+async def on_cancel_order(callback: CallbackQuery, state: FSMContext, _: dict):
+    await state.clear()
+    # уберём кнопки у текущего сообщения, если можно
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await callback.message.answer("❌ Заказ отменён.")
     await callback.answer()
