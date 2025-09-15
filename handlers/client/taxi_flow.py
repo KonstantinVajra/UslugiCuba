@@ -8,6 +8,10 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
 )
+from aiogram import types, F          # ← нужен F и types
+from aiogram.fsm.context import FSMContext
+import contextlib                     # ← нужен contextlib
+from services import nav_fsm          # ← нужен nav_fsm
 
 from config import HOURS_FROM, HOURS_TO, ADMIN_CHAT_ID
 from middlewares.i18n import _
@@ -450,3 +454,11 @@ async def _debug_unhandled(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(txt, parse_mode="HTML")
     except Exception:
         pass
+@router.callback_query(F.data == "cancel_order")
+async def on_cancel_order(call: types.CallbackQuery, state: FSMContext):
+    await nav_fsm.clear(state)  # очистим стек «Назад»
+    await state.clear()         # очистим FSM заказа
+    with contextlib.suppress(Exception):
+        await call.message.edit_reply_markup(reply_markup=None)
+    await call.message.answer("❌ Заказ отменён.")
+    await call.answer()

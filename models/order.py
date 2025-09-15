@@ -28,3 +28,21 @@ class PriceBreakdown(BaseModel):
     base_usd: float = 0.0
     mods: List[str] = Field(default_factory=list)
     rule: Optional[str] = None
+# models/order.py
+# ... остальной импорт и код без изменений ...
+
+class OrderDraft(BaseModel):
+    """Черновик заказа (состояние диалога)."""
+    user_id: int
+    service: ServiceName
+    pickup_code: Optional[str] = None
+    dropoff_code: Optional[str] = None
+    # ↓↓↓ НОВОЕ ↓↓↓
+    pickup_kind: Optional[str] = None
+    dropoff_kind: Optional[str] = None
+    # ↑↑↑ НОВОЕ ↑↑↑
+    when_date: Optional[date] = None
+    when_time: Optional[time] = None
+    tz: Optional[str] = None
+    language: Optional[str] = None
+    notes: Optional[str] = None
