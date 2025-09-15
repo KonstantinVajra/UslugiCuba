@@ -1,0 +1,186 @@
+*** Begin Patch
+*** Add File: docs/ARCHITECTURE.md
++# Архитектура (скелет)
++
++Слои проекта (добавлен каркас без изменения текущей логики бота):
++
++- **models/** — Pydantic-схемы DTO (вход/выход сервисов).
++- **repositories/** — интерфейсы и реализации доступа к данным (пока InMemory).
++- **services/** — бизнес-логика (ценообразование-обёртка, навигация «Назад» и т.п.).
++
++> Хэндлеры не тронуты. Каркас можно подключать постепенно, без риска сломать работу.
++
++## Мини-план подключения
++1. Перенести вычисление цены в `services/pricing_engine.py` (внутри вызывать текущий `pricing.py`).
++2. Ввести репозиторий заказов (`repositories/`) — сперва InMemory, затем БД.
++3. Использовать `services/navigation.py` для унифицированной кнопки «Назад».
++
+*** End Patch
+*** Begin Patch
+*** Add File: models/__init__.py
++"""Pydantic-схемы (DTO) для сервисов."""
++
+*** End Patch
+*** Begin Patch
+*** Add File: models/order.py
++from __future__ import annotations
++
++from datetime import date, time, datetime
++from typing import Literal, List, Optional
++from pydantic import BaseModel, Field
++
++
++ServiceName = Literal["taxi", "retro", "guide", "photo"]
++
++
++class OrderDraft(BaseModel):
++    """Черновик заказа (состояние диалога)."""
++    user_id: int
++    service: ServiceName
++    pickup_code: Optional[str] = None
++    dropoff_code: Optional[str] = None
++    when_date: Optional[date] = None
++    when_time: Optional[time] = None
++    tz: Optional[str] = None
++    language: Optional[str] = None
++    notes: Optional[str] = None
++
++    def when_datetime(self) -> Optional[datetime]:
++        if self.when_date and self.when_time:
++            return datetime.combine(self.when_date, self.when_time)
++        return None
++
++
++class PriceBreakdown(BaseModel):
++    total_usd: float = 0.0
++    base_usd: float = 0.0
++    mods: List[str] = Field(default_factory=list)
++    rule: Optional[str] = None
++
+*** End Patch
+*** Begin Patch
+*** Add File: repositories/__init__.py
++"""Интерфейсы и реализации репозиториев (доступ к данным)."""
++
+*** End Patch
+*** Begin Patch
+*** Add File: repositories/orders.py
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from typing import Optional
++from models.order import OrderDraft
++
++
++class OrdersRepository(ABC):
++    """Интерфейс репозитория заказов."""
++
++    @abstractmethod
++    def save(self, draft: OrderDraft) -> None: ...
++
++    @abstractmethod
++    def get(self, user_id: int) -> Optional[OrderDraft]: ...
++
++    @abstractmethod
++    def delete(self, user_id: int) -> None: ...
++
+*** End Patch
+*** Begin Patch
+*** Add File: repositories/memory_orders.py
++from __future__ import annotations
++
++from typing import Dict, Optional
++from models.order import OrderDraft
++from repositories.orders import OrdersRepository
++
++
++class InMemoryOrdersRepository(OrdersRepository):
++    """Простая InMemory-реализация (для разработки/тестов)."""
++
++    def __init__(self) -> None:
++        self._store: Dict[int, OrderDraft] = {}
++
++    def save(self, draft: OrderDraft) -> None:
++        self._store[draft.user_id] = draft
++
++    def get(self, user_id: int) -> Optional[OrderDraft]:
++        return self._store.get(user_id)
++
++    def delete(self, user_id: int) -> None:
++        self._store.pop(user_id, None)
++
+*** End Patch
+*** Begin Patch
+*** Add File: services/__init__.py
++"""Бизнес-логика (pricing, навигация и т.п.)."""
++
+*** End Patch
+*** Begin Patch
+*** Add File: services/pricing_engine.py
++from __future__ import annotations
++
++from typing import Any, Dict, Optional
++from models.order import OrderDraft, PriceBreakdown
++
++
++class PricingEngine:
++    """
++    Обёртка над расчётом цены.
++    Сейчас — безопасный каркас: при подключении к существующему pricing.py
++    можно прокинуть вызовы внутрь. Пока — не меняет поведение бота.
++    """
++
++    def __init__(self, options: Optional[Dict[str, Any]] = None) -> None:
++        self.options = options or {}
++
++    def compute(self, draft: OrderDraft) -> PriceBreakdown:
++        """
++        Возвращает PriceBreakdown.
++        TODO: подключить фактический расчёт из pricing.py,
++        когда будем переносить туда бизнес-логику из хэндлеров.
++        """
++        # Пример будущего подключения (псевдокод):
++        # import pricing
++        # total, meta = pricing.quote(
++        #     from_code=draft.pickup_code,
++        #     to_code=draft.dropoff_code,
++        #     when=draft.when_datetime(),
++        #     options=self.options,
++        # )
++        # return PriceBreakdown(
++        #     total_usd=float(total),
++        #     base_usd=float(meta.get("base_usd", 0)),
++        #     mods=meta.get("mods", []),
++        #     rule=meta.get("rule"),
++        # )
++        return PriceBreakdown()  # пока пустой результат, чтобы не ломать текущий код
++
+*** End Patch
+*** Begin Patch
+*** Add File: services/navigation.py
++from __future__ import annotations
++
++from typing import List, Optional, Any
++
++
++class BackStack:
++    """
++    Простой стек шагов для реализации кнопки «Назад».
++    Хранит произвольные «снимки состояния» (например, имя state и payload).
++    """
++
++    def __init__(self) -> None:
++        self._stack: List[Any] = []
++
++    def push(self, snapshot: Any) -> None:
++        self._stack.append(snapshot)
++
++    def pop(self) -> Optional[Any]:
++        if self._stack:
++            return self._stack.pop()
++        return None
++
++    def clear(self) -> None:
++        self._stack.clear()
++
+*** End Patch
