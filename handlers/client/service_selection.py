@@ -25,6 +25,12 @@ from callbacks.common import BackCb
 
 router = Router()
 
+# ——— Back-обёртка для любой уже готовой клавиатуры ———
+def add_back(markup: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
+    rows = list(markup.inline_keyboard)
+    rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data=BackCb().pack())])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 def _norm(s: str) -> str:
     # убираем всё, кроме [A-Za-z0-9_], и приводим к нижнему регистру
     return re.sub(r"[^\w]+", "", (s or "")).casefold()
@@ -145,7 +151,7 @@ async def dropoff_selected_airport(callback: CallbackQuery, state: FSMContext, _
     await state.update_data(dropoff=to_place_dict(k, i, dropoff_location))
 
     await callback.message.answer(f"✅ {dropoff_txt}: {dropoff_location}")
-    await callback.message.answer(_("choose_date"), reply_markup=date_selection_keyboard(_))
+    await callback.message.answer(_("choose_date"), reply_markup=add_back(date_selection_keyboard(_)))
     await state.set_state(OrderServiceState.entering_date)
     await callback.answer()
 
@@ -231,7 +237,7 @@ async def dropoff_selected_hotel(callback: CallbackQuery, state: FSMContext, _: 
     await state.update_data(dropoff=to_place_dict(k, i, dropoff_location))
 
     await callback.message.answer(f"✅ {dropoff_txt}: {dropoff_location}")
-    await callback.message.answer(_("choose_date"), reply_markup=date_selection_keyboard(_))
+    await callback.message.answer(_("choose_date"), reply_markup=add_back(date_selection_keyboard(_)))
     await state.set_state(OrderServiceState.entering_date)
     await callback.answer()
 
@@ -252,7 +258,7 @@ async def dropoff_selected_restaurant(callback: CallbackQuery, state: FSMContext
     await state.update_data(dropoff=to_place_dict(k, i, dropoff_location))
 
     await callback.message.answer(f"✅ {dropoff_txt}: {dropoff_location}")
-    await callback.message.answer(_("choose_date"), reply_markup=date_selection_keyboard(_))
+    await callback.message.answer(_("choose_date"), reply_markup=add_back(date_selection_keyboard(_)))
     await state.set_state(OrderServiceState.entering_date)
     await callback.answer()
 
@@ -298,7 +304,7 @@ async def handle_hour_selection(callback: CallbackQuery, state: FSMContext, _: d
     chosen_hour = _('chosen_hour')
     await state.update_data(selected_hour=hour)
     await callback.message.edit_text(f"{chosen_hour}: {hour}")
-    await callback.message.answer(_("choose_minute"), reply_markup=minute_selection_keyboard())
+    await callback.message.answer(_("choose_minute"), reply_markup=add_back(minute_selection_keyboard()))
     await state.set_state(OrderServiceState.entering_minute)
     await callback.answer()
 
@@ -384,14 +390,30 @@ async def back_in_service_flow(callback: CallbackQuery, state: FSMContext, _: di
     cur = await state.get_state()
 
     if cur == OrderServiceState.confirming_order:
-        await state.set_state(OrderServiceState.entering_minute)
-        await callback.message.edit_text(_("choose_minute"), reply_markup=minute_selection_keyboard())
+        # ← С ИТОГОВОЙ КАРТЫ В САМЫЙ СТАРТ (выбор ОТКУДА)
+        await state.set_state(OrderServiceState.entering_pickup)
+        await callback.message.edit_text(_("enter_pickup"), reply_markup=pickup_category_keyboard())
+
     elif cur == OrderServiceState.entering_minute:
+        # ← к выбору часа
         await state.set_state(OrderServiceState.entering_hour)
         await callback.message.edit_text(_("choose_hour"), reply_markup=hour_selection_keyboard())
+
     elif cur == OrderServiceState.entering_hour:
+        # ← к выбору даты
         await state.set_state(OrderServiceState.entering_date)
         await callback.message.edit_text(_("choose_date"), reply_markup=date_selection_keyboard(_))
+
+    elif cur == OrderServiceState.entering_date:
+        # ← к выбору КУДА (категория места прибытия)
+        await state.set_state(OrderServiceState.entering_dropoff)
+        await callback.message.edit_text(_("dropoff_msg"), reply_markup=dropoff_category_keyboard())
+
+    elif cur == OrderServiceState.entering_dropoff:
+        # ← к выбору ОТКУДА (категория места отправления)
+        await state.set_state(OrderServiceState.entering_pickup)
+        await callback.message.edit_text(_("enter_pickup"), reply_markup=pickup_category_keyboard())
+
     else:
         await callback.answer()
         return

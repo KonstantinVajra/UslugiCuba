@@ -25,3 +25,9 @@ def minutes_kb():
     kb.adjust(4)
     kb.row(InlineKeyboardButton(text="◀️ Назад", callback_data=BackCb().pack()))
     return kb.as_markup()
+
+def with_back(markup: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
+    """Добавить строку 'Назад' к любой готовой Inline-клавиатуре."""
+    rows = list(markup.inline_keyboard)
+    rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data=BackCb().pack())])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
