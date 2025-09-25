@@ -1,16 +1,38 @@
-# Python cache
+# OS
+.DS_Store
+
+# Python
 __pycache__/
 *.py[cod]
+*.so
+*.pyd
+*.pyo
 *.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtualenv
 .venv/
 venv/
 
-# IDE configs
+# IDE
 .idea/
 .vscode/
 
-# Secrets
+# Env & secrets
 .env
+.env.*
+*.env
 
-# gettext compiled
-locales/**/*.mo
+# Logs
+*.log
+
+# Pytest / coverage / mypy
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
