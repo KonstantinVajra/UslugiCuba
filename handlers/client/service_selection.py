@@ -15,12 +15,13 @@ from keyboards.locations import (
     HOTEL_NAMES, RESTAURANT_NAMES,
     AIRPORT_NAMES, airport_list_keyboard
 )
-from handlers.client.taxi_flow import TaxiOrder
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pricing import quote_price            # (импорт вверху файла, если ещё нет)
+from pricing import quote_price
 from keyboards.locations import HOTEL_NAMES, RESTAURANT_NAMES, AIRPORT_NAMES
-import os, csv, re
+import os, csv, re, logging
 from functools import lru_cache
+from repo.orders import create_order
+from config import ADMIN_CHAT_ID
 
 router = Router()
 
@@ -376,3 +377,67 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
     await callback.message.answer(summary, reply_markup=confirm_kb)
     await state.set_state(OrderServiceState.confirming_order)
     await callback.answer()
+
+
+@router.callback_query(F.data == "cancel_order", OrderServiceState.confirming_order)
+async def handle_cancel_order(callback: CallbackQuery, state: FSMContext, _: dict):
+    await state.clear()
+    await callback.message.edit_text(_("order_cancelled"))
+    await callback.answer()
+
+
+@router.callback_query(F.data == "confirm_order", OrderServiceState.confirming_order)
+async def handle_confirm_order(callback: CallbackQuery, state: FSMContext, _: dict):
+    data = await state.get_data()
+
+    # Извлекаем и нормализуем данные
+    service = data.get("service", "N/A")
+    pickup = ensure_place(data.get("pickup"), "")
+    dropoff = ensure_place(data.get("dropoff"), "")
+    pickup_name = pickup.get("name", "N/A")
+    dropoff_name = dropoff.get("name", "N/A")
+    datetime_str = data.get("datetime", "N/A")
+    price = data.get("price_quote", 0)
+    price_payload = data.get("price_payload", {})
+
+    # Сохраняем заказ в БД
+    try:
+        order_id = await create_order({
+            "client_tg_id": callback.from_user.id,
+            "lang": getattr(callback.from_user, "language_code", "ru"),
+            "service": service,
+            "pickup_text": pickup_name,
+            "dropoff_text": dropoff_name,
+            "when_dt": datetime_str,
+            "pax": 1,
+            "options": {"time": datetime_str.split(" ")[-1]},
+            "price_quote": price,
+            "price_payload": price_payload,
+        })
+
+        # Уведомляем клиента
+        confirmation_msg = _("order_confirmed").format(order_id=order_id)
+        await callback.message.edit_text(confirmation_msg)
+
+        # Уведомляем админа
+        if ADMIN_CHAT_ID:
+            try:
+                admin_msg = (
+                    f"✅ Новый заказ #{order_id}\n"
+                    f"Услуга: {service}\n"
+                    f"Откуда: {pickup_name}\n"
+                    f"Куда: {dropoff_name}\n"
+                    f"Когда: {datetime_str}\n"
+                    f"Цена: {price} USD"
+                )
+                await callback.bot.send_message(ADMIN_CHAT_ID, admin_msg)
+            except Exception as e:
+                logging.error(f"Failed to send admin notification for order {order_id}: {e}")
+
+    except Exception as e:
+        logging.error(f"Failed to create order for user {callback.from_user.id}: {e}")
+        await callback.message.edit_text(_("order_failed"))
+
+    finally:
+        await state.clear()
+        await callback.answer()

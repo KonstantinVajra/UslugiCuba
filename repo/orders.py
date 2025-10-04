@@ -92,20 +92,21 @@ async def create_order(order: dict) -> int:
                   pickup_text, dropoff_text, when_dt, pax,
                   options, price_quote, currency, price_payload
                 )
-                VALUES ('confirmed','taxi', $1, COALESCE($2,'ru'),
-                        $3, $4, $5, COALESCE($6, 1),
-                        $7::jsonb, $8, 'USD', $9::jsonb)
+                VALUES ('confirmed', $1, $2, COALESCE($3,'ru'),
+                        $4, $5, $6, COALESCE($7, 1),
+                        $8::jsonb, $9, 'USD', $10::jsonb)
                 RETURNING id
                 """,
-                order["client_tg_id"],                # обязательное поле
-                order.get("lang"),                    # может быть None — COALESCE -> 'ru'
-                order.get("pickup_text", ""),         # в твоём сценарии это строка
+                order.get("service", "taxi"),
+                order["client_tg_id"],
+                order.get("lang"),
+                order.get("pickup_text", ""),
                 order.get("dropoff_text", ""),
-                order.get("when_dt"),                 # строка/datetime — как у тебя заведено
-                order.get("pax"),                     # если None — COALESCE -> 1
-                options_json,                         # jsonb
-                order.get("price_quote"),             # число/Decimal — как у тебя заведено
-                payload_json,                         # jsonb
+                order.get("when_dt"),
+                order.get("pax"),
+                options_json,
+                order.get("price_quote"),
+                payload_json,
             )
             if not row or "id" not in row:
                 raise RuntimeError("INSERT returned no id")
