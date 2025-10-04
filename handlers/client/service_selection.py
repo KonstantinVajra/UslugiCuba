@@ -81,14 +81,18 @@ async def start_order(message: Message, state: FSMContext, _: dict):
 
 @router.callback_query(F.data.startswith("service_"))
 async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: dict):
-    service_map = {
-        "service_taxi": _("Taxi"),
-        "service_retro": _("Retro car"),
-        "service_guide": _("Guide"),
-        "service_photographer": _("Photographer"),
+    service_code = callback.data.replace("service_", "")
+
+    service_display_map = {
+        "taxi": _("Taxi"),
+        "retro": _("Retro car"),
+        "guide": _("Guide"),
+        "photographer": _("Photographer"),
     }
-    selected_service = service_map.get(callback.data, callback.data)
-    await state.update_data(service=selected_service)
+    display_name = service_display_map.get(service_code, service_code)
+
+    await state.update_data(service=service_code, service_display_name=display_name)
+
 
     # 👉 ВАЖНО: оставляем родной поток с категориями (там есть Ресторан)
     await callback.message.answer(_("enter_pickup"), reply_markup=pickup_category_keyboard())
@@ -311,7 +315,10 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
 
     date    = data.get("selected_date")
     hour    = data.get("selected_hour")
-    service = data.get("service", "Taxi")
+    # service_code — системное имя; service_name — для показа
+    service_code = data.get("service", "taxi")
+    service_name = data.get("service_display_name", service_code)
+
 
     # Приводим к новому формату (dict), на случай если в state внезапно лежит строка
     pd = ensure_place(data.get("pickup"),  "")
@@ -333,7 +340,7 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
     when_hhmm = f"{hour}:{minute}"
     try:
         price, payload = quote_price(
-            service="taxi",
+            service=service_code,
             from_kind=from_kind, from_id=from_id,
             to_kind=to_kind,     to_id=to_id,
             when_hhmm=when_hhmm,
@@ -355,7 +362,7 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
 
     summary = (
         f"📋 {order_summary}:\n\n"
-        f"🛎️ {service_txt}: {service}\n"
+        f"🛎️ {service_txt}: {service_name}\n"
         f"📍 {from_txt}: {pickup_name}\n"
         f"📍 {to_txt}: {dropoff_name}\n"
         f"📅 {date_txt}: {date}\n"
