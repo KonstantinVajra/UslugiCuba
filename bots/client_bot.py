@@ -7,15 +7,13 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import CLIENT_BOT_TOKEN
 from middlewares.i18n import I18nMiddleware
 from handlers.client import service_selection, taxi_flow
+from db.db_config import init_db_pool, close_db_pool
 
 
 # +++ ЛОГИ
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("client_bot")
-
-# +++ ПИНГ БД
-from repo.orders import ping_db
 
 
 async def run_client_bot():
@@ -28,12 +26,11 @@ async def run_client_bot():
     dp.include_router(service_selection.router)
     dp.include_router(taxi_flow.router)
 
-    # Проверяем БД перед запуском polling (упадём сразу, если что)
-    try:
-        await ping_db()
-    except Exception as e:
-        logging.warning("DB not reachable: %s — starting in NO-DB mode", e)
-    logger.info("DB OK. Starting polling...")
+    # Инициализируем пул соединений с БД
+    await init_db_pool()
 
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dp.start_polling(bot)
+    finally:
+        await close_db_pool()
