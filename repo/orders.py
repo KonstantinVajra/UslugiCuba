@@ -1,9 +1,14 @@
-# repositories/orders.py
+# repo/orders.py
+import asyncpg
 import logging
 import json
-from db.db_config import get_pool
+from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSLMODE
 
-log = logging.getLogger("repositories.orders")
+_pool = None
+NO_DB = False
+
+log = logging.getLogger("repo.orders")
+_pool: asyncpg.Pool | None = None
 
 _FAKE_ID = 0
 def _fake_order_id() -> int:
@@ -13,6 +18,43 @@ def _fake_order_id() -> int:
     global _FAKE_ID
     _FAKE_ID -= 1
     return _FAKE_ID
+
+async def get_pool():
+    """
+    Возвращает пул подключений к БД или None, если БД недоступна.
+    """
+    global _pool, NO_DB
+    if _pool or NO_DB:
+        return _pool
+
+    try:
+        # ↓↓↓ оставь свои параметры/переменные (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, ssl и т.д.)
+        _pool = await asyncpg.create_pool(
+            host=DB_HOST,
+            port=int(DB_PORT),
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            ssl="require",  # или как у тебя было
+        )
+        return _pool
+    except Exception as e:
+        logging.warning("DB pool init failed: %s — continuing without DB", e)
+        NO_DB = True
+        return None
+
+
+async def ping_db():
+    """
+    Проверка соединения с БД на старте. В NO-DB режиме просто пропускаем.
+    """
+    pool = await get_pool()
+    if not pool:
+        logging.warning("Skipping DB ping (NO-DB mode)")
+        return
+
+    async with pool.acquire() as conn:
+        await conn.execute("SELECT 1")
 
 
 

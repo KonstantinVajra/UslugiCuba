@@ -66,10 +66,3 @@ def language_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🇪🇸 Español", callback_data="lang_es"),
         ]
     ])
-
-def main_keyboard() -> InlineKeyboardMarkup:
-    """Возвращает основную клавиатуру с выбором услуг."""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚖 Такси и Кабриолеты", callback_data="service_taxi")],
-        [InlineKeyboardButton(text="📋 Посмотреть автомобили", callback_data="show_cars")]
-    ])

@@ -11,7 +11,7 @@ from aiogram.types import (
 
 from config import HOURS_FROM, HOURS_TO, ADMIN_CHAT_ID
 from middlewares.i18n import _
-from repositories.orders import create_order
+from repo.orders import create_order
 
 # ← добавили работу со справочниками и ценами
 from data_loader import load_locations
