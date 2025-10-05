@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from states.client_states import OrderServiceState
 from keyboards.client import (
-    service_inline_keyboard,
+    main_keyboard,
     date_selection_keyboard,
     hour_selection_keyboard,
     minute_selection_keyboard,
@@ -75,7 +75,7 @@ def ensure_place(value, fallback_kind: str = "") -> dict:
 @router.message(F.text.in_({"/start", "/order"}))
 async def start_order(message: Message, state: FSMContext, _: dict):
     await message.answer(_("start_msg"))
-    await message.answer(_("choose_service"), reply_markup=service_inline_keyboard(_))
+    await message.answer(_("choose_service"), reply_markup=main_keyboard())
     await state.set_state(OrderServiceState.choosing_service)
 
 
