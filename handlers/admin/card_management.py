@@ -1,7 +1,8 @@
 import logging
 from typing import Dict, Any
+
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, BaseFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
@@ -13,7 +14,7 @@ router = Router()
 log = logging.getLogger(__name__)
 
 # --- Фильтр для проверки прав администратора ---
-class AdminFilter(F):
+class AdminFilter(BaseFilter):
     async def __call__(self, message: Message) -> bool:
         return message.from_user.id in ADMIN_IDS
 
@@ -99,8 +100,8 @@ async def process_title(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("param_seats_"))
 async def process_seats(callback: CallbackQuery, state: FSMContext):
     """Обрабатывает выбор количества мест и запрашивает цену."""
-    seats = int(callback.data.split("_")[-1])
-    await state.update_data(seats=seats)
+    seats_str = callback.data.split("_")[-1].replace('+', '')
+    await state.update_data(seats=int(seats_str))
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -140,7 +141,7 @@ async def process_description_and_show_preview(message: Message, state: FSMConte
 
     caption = (
         f"<b>{data.get('title')}</b>\n\n"
-        f"👥 {data.get('seats')} места\n"
+        f"👥 {data.get('seats')}+ места\n"
         f"💵 {price_str}\n"
         f"📝 {data.get('description')}"
     )
@@ -180,7 +181,8 @@ async def finish_vehicle_creation(callback: CallbackQuery, state: FSMContext):
 
     if new_vehicle:
         await callback.message.edit_text(
-            f"✅ Карточка для провайдера <b>{provider['name']}</b> (ID: {provider['id']}) успешно сохранена со статусом <b>{status}</b>."
+            f"✅ Карточка для провайдера <b>{provider['name']}</b> (ID: {provider['id']}) успешно сохранена со статусом <b>{status}</b>.",
+            parse_mode="HTML"
         )
     else:
         await callback.message.edit_text("❌ Произошла ошибка при сохранении карточки в базу данных.")
