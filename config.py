@@ -11,6 +11,11 @@ CLIENT_BOT_TOKEN = os.getenv("CLIENT_BOT_TOKEN", "")
 # === ADMIN CHAT ===
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
 
+# === ADMIN USERS ===
+admin_ids_str = os.getenv("ADMIN_IDS", "")
+ADMIN_IDS = [int(admin_id.strip()) for admin_id in admin_ids_str.split(',') if admin_id.strip()]
+
+
 # === TIME SLOTS ===
 HOURS_FROM = int(os.getenv("HOURS_FROM", "8"))
 HOURS_TO   = int(os.getenv("HOURS_TO", "20"))
@@ -31,6 +36,7 @@ from types import SimpleNamespace
 config = SimpleNamespace(
     CLIENT_BOT_TOKEN=CLIENT_BOT_TOKEN,
     ADMIN_CHAT_ID=ADMIN_CHAT_ID,
+    ADMIN_IDS=ADMIN_IDS,
     HOURS_FROM=HOURS_FROM,
     HOURS_TO=HOURS_TO,
     DB_HOST=DB_HOST,
