@@ -39,18 +39,3 @@ async def close_db_pool():
 async def get_pool() -> asyncpg.Pool | None:
     """Возвращает текущий пул соединений."""
     return _pool
-
-async def ping_db():
-    """Проверяет соединение с БД."""
-    pool = await get_pool()
-    if not pool:
-        log.warning("Skipping DB ping (NO-DB mode)")
-        return
-
-    try:
-        async with pool.acquire() as conn:
-            await conn.execute("SELECT 1")
-        log.info("Database ping successful.")
-    except Exception as e:
-        log.error("Database ping failed: %s", e)
-        raise
