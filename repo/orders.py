@@ -10,12 +10,6 @@ NO_DB = False
 log = logging.getLogger("repo.orders")
 _pool: asyncpg.Pool | None = None
 
-_FAKE_ID = 0
-def _fake_order_id() -> int:
-    global _FAKE_ID
-    _FAKE_ID -= 1
-    return _FAKE_ID
-
 async def get_pool():
     global _pool, NO_DB
     if _pool or NO_DB:
@@ -37,82 +31,88 @@ async def get_pool():
         return None
 
 async def ping_db():
-    """
-    Проверка соединения с БД на старте. В NO-DB режиме просто пропускаем.
-    """
     pool = await get_pool()
     if not pool:
         logging.warning("Skipping DB ping (NO-DB mode)")
         return
-
     async with pool.acquire() as conn:
         await conn.execute("SELECT 1")
 
 async def get_or_create_user_id(con: asyncpg.Connection, tg_id: int, username: str) -> int:
-    """
-    Находит пользователя по tg_id. Если не найден — создает нового.
-    Возвращает внутренний id пользователя.
-    """
-    # Сначала ищем пользователя
+    """Находит пользователя по tg_id. Если не найден — создает нового. Возвращает внутренний id."""
     user_id = await con.fetchval('SELECT id FROM svc."user" WHERE tg_id = $1', tg_id)
     if user_id:
         return user_id
-
-    # Если не нашли, создаем нового
     return await con.fetchval(
         'INSERT INTO svc."user" (tg_id, username, role) VALUES ($1, $2, $3) RETURNING id',
         tg_id, username, 'client'
     )
 
+async def get_service_id(con: asyncpg.Connection, category: str) -> int | None:
+    """Получает ID услуги по ее категории."""
+    # Для такси и кабриолетов используем одну и ту же услугу 'taxi'
+    if category in ('taxi', 'cabrio'):
+        category = 'taxi'
+    return await con.fetchval("SELECT id FROM uslugicuba.services WHERE category = $1 LIMIT 1", category)
+
+
 async def create_order(order: dict) -> int:
-    """
-    Пишет заказ в БД, либо (если БД недоступна) — работает в NO-DB режиме и возвращает отрицательный id.
-    """
+    """Пишет заказ в БД в соответствии с правильной схемой."""
     pool = await get_pool()
     if not pool:
-        fake_id = _fake_order_id()
-        logging.info("NO-DB mode: pretend INSERT order id=%s", fake_id)
-        return fake_id
+        log.warning("NO-DB mode: order will not be persisted")
+        return -1
 
     async with pool.acquire() as con:
         try:
-            # Получаем или создаем пользователя и получаем его внутренний ID
-            user_id = await get_or_create_user_id(
+            # 1. Получаем/создаем ID клиента
+            customer_id = await get_or_create_user_id(
                 con,
                 order["client_tg_id"],
                 order.get("client_username", f"user_{order['client_tg_id']}")
             )
 
-            # Теперь вставляем заказ с правильным user_id
-            # ВНИМАНИЕ: Заменяем client_tg_id на user_id
+            # 2. Получаем ID сервиса (для такси)
+            service_id = await get_service_id(con, "taxi")
+            if not service_id:
+                log.error("Service 'taxi' not found in uslugicuba.services")
+                raise ValueError("Taxi service not configured in DB")
+
+            # 3. Собираем мета-данные
+            meta_data = {
+                "lang": order.get("lang"),
+                "price_quote": order.get("price_quote"),
+                "price_payload": order.get("price_payload", {}),
+                "pickup_details": order.get("pickup_text"),
+                "dropoff_details": order.get("dropoff_text"),
+            }
+            if order.get("options", {}).get("selected_car"):
+                 meta_data["selected_car"] = order.get("options", {}).get("selected_car")
+
+            # 4. Вставляем заказ в uslugicuba.orders
             row = await con.fetchrow(
                 """
-                INSERT INTO svc."order"(
-                  status, service, user_id,
-                  pickup_text, dropoff_text, when_dt, pax,
-                  options, price_quote, currency, price_payload
+                INSERT INTO uslugicuba.orders(
+                  customer_id, service_id, state,
+                  date_time, pax, customer_note, meta
                 )
-                VALUES ('confirmed','taxi', $1,
-                        $2, $3, $4, COALESCE($5, 1),
-                        $6::jsonb, $7, 'USD', $8::jsonb)
+                VALUES ($1, $2, 'confirmed', $3, $4, $5, $6::jsonb)
                 RETURNING id
                 """,
-                user_id,
-                order.get("pickup_text", ""),
-                order.get("dropoff_text", ""),
+                customer_id,
+                service_id,
                 order.get("when_dt"),
                 order.get("pax", 1),
-                json.dumps(order.get("options", {})),
-                order.get("price_quote"),
-                json.dumps(order.get("price_payload", {})),
+                order.get("customer_note", ""),
+                json.dumps(meta_data)
             )
             if not row or "id" not in row:
-                raise RuntimeError("INSERT returned no id")
+                raise RuntimeError("INSERT into uslugicuba.orders returned no id")
 
             oid = int(row["id"])
-            logging.info("Order inserted id=%s", oid)
+            log.info("Order inserted into uslugicuba.orders with id=%s", oid)
             return oid
 
         except Exception as e:
-            logging.exception("create_order failed: %s", e)
+            log.exception("create_order failed with correct schema: %s", e)
             raise

@@ -265,17 +265,21 @@ async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, _: dict)
     when_dt = f"{data.get('selected_date')} {data.get('selected_hour')}:{data.get('minute', '00')}"
 
     try:
-        order_id = await create_order({
+        # Собираем данные для новой функции create_order
+        order_data = {
             "client_tg_id": callback.from_user.id,
             "client_username": callback.from_user.username,
             "lang": getattr(callback.from_user, "language_code", "ru"),
             "pickup_text": pd.get("name"),
             "dropoff_text": dd.get("name"),
             "when_dt": when_dt,
+            "pax": data.get("pax", 1),
+            "customer_note": data.get("comment"), # Используем ключ comment из старого FSM
             "options": {"selected_car": data.get("selected_car")} if data.get("selected_car") else {},
             "price_quote": data.get("price_quote"),
             "price_payload": data.get("price_payload", {}),
-        })
+        }
+        order_id = await create_order(order_data)
         await callback.message.edit_text(f"✅ Заказ #{order_id} принят. Ожидайте.")
 
         admin_chat_id = os.getenv("ADMIN_CHAT_ID")
