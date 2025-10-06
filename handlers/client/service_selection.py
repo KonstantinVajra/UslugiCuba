@@ -263,6 +263,7 @@ async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, _: dict)
     try:
         order_id = await create_order({
             "client_tg_id": callback.from_user.id,
+            "client_username": callback.from_user.username,
             "lang": getattr(callback.from_user, "language_code", "ru"),
             "pickup_text": pd.get("name"),
             "dropoff_text": dd.get("name"),
