@@ -96,7 +96,7 @@ async def create_order(order: dict) -> int:
                   customer_id, service_id, state,
                   date_time, pax, customer_note, meta
                 )
-                VALUES ($1, $2, 'confirmed', $3, $4, $5, $6::jsonb)
+                VALUES ($1, $2, 'new', $3, $4, $5, $6::jsonb)
                 RETURNING id
                 """,
                 customer_id,
