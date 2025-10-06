@@ -5,6 +5,7 @@ import re
 import csv
 import json
 from functools import lru_cache
+from datetime import datetime  # <--- ДОБАВЛЕН ИМПОРТ
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -29,8 +30,7 @@ from repo.orders import create_order
 router = Router()
 log = logging.getLogger(__name__)
 
-# --- Вспомогательные функции для работы с локациями ---
-
+# --- Вспомогательные функции ---
 def _norm(s: str) -> str:
     return re.sub(r"[^\w]+", "", (s or "")).casefold()
 
@@ -68,7 +68,6 @@ def ensure_place(value, fallback_kind: str = "") -> dict:
     return to_place_dict(k, i, name)
 
 # --- 1. Главное меню и навигация ---
-
 async def show_main_menu(message: Message, _: dict, edit: bool = False):
     text = _("🌴 Услуги Кубы — выберите категорию:")
     markup = main_menu_keyboard(_)
@@ -100,16 +99,14 @@ async def cb_category_taxi(callback: CallbackQuery, _: dict):
     )
     await callback.answer()
 
-# --- 2. Восстановленный FSM для заказа такси ---
-
+# --- 2. FSM для заказа такси ---
 @router.callback_query(F.data == "taxi_quick_order")
 async def cb_taxi_quick_order(callback: CallbackQuery, state: FSMContext, _: dict):
     await state.set_state(OrderServiceState.entering_pickup)
     await callback.message.edit_text(_("enter_pickup"), reply_markup=pickup_category_keyboard())
     await callback.answer()
 
-# --- Шаги FSM ---
-
+# ... (остальные шаги FSM без изменений) ...
 @router.callback_query(F.data.in_({"pickup_hotels", "pickup_restaurants", "pickup_airports"}), OrderServiceState.entering_pickup)
 async def pickup_category(callback: CallbackQuery, state: FSMContext, _: dict):
     actions = {
@@ -138,15 +135,13 @@ async def pickup_location_selected(callback: CallbackQuery, state: FSMContext, _
         elif loc_type == 'airport':
             location_name = AIRPORT_NAMES[index]
             kind = "airport"
-        else:
-            return
+        else: return
     except (IndexError, ValueError):
         await callback.answer("Ошибка выбора", show_alert=True)
         return
 
     k, i = name_to_kind_id(location_name, kind)
     await state.update_data(pickup=to_place_dict(k, i, location_name))
-
     await state.set_state(OrderServiceState.entering_dropoff)
     await callback.message.edit_text(
         f"✅ {_('pickup_chosen')}: {location_name}\n\n{_('dropoff_msg')}",
@@ -182,15 +177,13 @@ async def dropoff_location_selected(callback: CallbackQuery, state: FSMContext, 
         elif loc_type == 'airport':
             location_name = AIRPORT_NAMES[index]
             kind = "airport"
-        else:
-            return
+        else: return
     except (IndexError, ValueError):
         await callback.answer("Ошибка выбора", show_alert=True)
         return
 
     k, i = name_to_kind_id(location_name, kind)
     await state.update_data(dropoff=to_place_dict(k, i, location_name))
-
     await state.set_state(OrderServiceState.entering_date)
     await callback.message.edit_text(
         f"✅ {_('dropoff_chosen')}: {location_name}\n\n{_('choose_date')}",
@@ -262,19 +255,30 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
 async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, _: dict):
     data = await state.get_data()
     pd, dd = ensure_place(data.get("pickup")), ensure_place(data.get("dropoff"))
-    when_dt = f"{data.get('selected_date')} {data.get('selected_hour')}:{data.get('minute', '00')}"
+
+    # --- ИСПРАВЛЕНИЕ: Преобразование строки в datetime ---
+    try:
+        date_str = data.get("selected_date")
+        hour_str = data.get("selected_hour")
+        minute_str = data.get("minute", "00")
+        when_dt_obj = datetime.strptime(f"{date_str} {hour_str}:{minute_str}", "%Y-%m-%d %H:%M")
+    except (ValueError, TypeError):
+        log.error(f"Could not parse datetime from state data: {data}")
+        await callback.message.edit_text("❌ Ошибка в дате или времени. Пожалуйста, начните заново.")
+        await state.clear()
+        return
+    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
     try:
-        # Собираем данные для новой функции create_order
         order_data = {
             "client_tg_id": callback.from_user.id,
             "client_username": callback.from_user.username,
             "lang": getattr(callback.from_user, "language_code", "ru"),
             "pickup_text": pd.get("name"),
             "dropoff_text": dd.get("name"),
-            "when_dt": when_dt,
+            "when_dt": when_dt_obj, # <--- Передаем объект datetime
             "pax": data.get("pax", 1),
-            "customer_note": data.get("comment"), # Используем ключ comment из старого FSM
+            "customer_note": data.get("comment"),
             "options": {"selected_car": data.get("selected_car")} if data.get("selected_car") else {},
             "price_quote": data.get("price_quote"),
             "price_payload": data.get("price_payload", {}),
@@ -286,7 +290,7 @@ async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, _: dict)
         if admin_chat_id:
             admin_msg = f"🔔 Новый заказ #{order_id}\n"
             if data.get("selected_car"): admin_msg += f"🚘 Авто: {data.get('selected_car')}\n"
-            admin_msg += f"От: {pd.get('name')}\nДо: {dd.get('name')}\nКогда: {when_dt}"
+            admin_msg += f"От: {pd.get('name')}\nДо: {dd.get('name')}\nКогда: {when_dt_obj.strftime('%Y-%m-%d %H:%M')}"
             await callback.bot.send_message(admin_chat_id, admin_msg)
 
     except Exception as e:
