@@ -1,174 +1,105 @@
-# Схема Базы Данных
+# Структура Базы данных «Услуги Кубы»
 
-## SCHEMA: svc
-
-### 1. svc.user
-Хранит всех пользователей, взаимодействующих с ботом.
-
-| Column    | Type        | Default  | Notes                  |
-|-----------|-------------|----------|------------------------|
-| id        | SERIAL      | —        | Primary key            |
-| tg_id     | BIGINT      | —        | Telegram ID            |
-| username  | VARCHAR(255)| —        | Telegram username      |
-| role      | VARCHAR(20) | 'client' | client / provider / admin |
-| is_banned | BOOLEAN     | false    | Бан-флаг               |
-| joined_at | TIMESTAMPTZ | NOW()    | Дата регистрации       |
-
-**Indexes:**
-- `user_tg_id_key` (unique)
-- PK (id)
-
-### 2. svc.provider
-Информация о поставщиках (гиды, фотографы, водители и т.д.).
-
-| Column     | Type        | Default | Notes                     |
-|------------|-------------|---------|---------------------------|
-| id         | SERIAL      | —       | Primary key               |
-| user_id    | INTEGER     | —       | FK → svc.user(id)         |
-| name       | VARCHAR(255)| —       | Имя или название          |
-| phone      | VARCHAR(50) | —       | Контакт                   |
-| is_active  | BOOLEAN     | true    | Статус                    |
-| created_at | TIMESTAMPTZ | NOW()   | Время регистрации         |
-
-**Constraints:**
-- FK → `svc.user(id)` (ON DELETE CASCADE)
-- `user_id` уникален (1 юзер = 1 провайдер)
-
-### 3. svc.vehicle
-Список автомобилей провайдеров.
-
-| Column         | Type          | Default | Notes                       |
-|----------------|---------------|---------|-----------------------------|
-| id             | SERIAL        | —       | Primary key                 |
-| provider_id    | INTEGER       | —       | FK → svc.provider(id)       |
-| title          | VARCHAR(255)  | —       | Название (Chevrolet BelAir) |
-| description    | TEXT          | —       | Описание                    |
-| photo_file_ids | TEXT[]        | '{}'    | Массив Telegram file_id     |
-| seats          | INTEGER       | —       | Кол-во мест                 |
-| price_per_hour | NUMERIC(10,2) | —       | Цена/час                    |
-| price_details  | TEXT          | —       | Доп. описание цены          |
-| status         | VARCHAR(20)   | 'draft' | draft / published / archived|
-| created_at     | TIMESTAMPTZ   | NOW()   | Создано                     |
-| updated_at     | TIMESTAMPTZ   | NOW()   | Обновлено                   |
-
-**Indexes:**
-- `idx_vehicle_status` → BTREE(status)
+## Схемы
+- **svc** — системная: пользователи, провайдеры, автомобили.
+- **uslugicuba** — доменная: города/зоны/локации, каталог услуг, офферы/цены, клиенты, заказы.
 
 ---
 
-## 🌴 SCHEMA: uslugicuba
+## Схема: `svc`
 
-### 1. uslugicuba.locations
-Справочник локаций (отели, рестораны, аэропорты и т.д.).
+### Таблица: `svc."user"`
+*Telegram-пользователи, взаимодействующие с ботом.*
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `INTEGER IDENTITY` | `PK` | |
+| `tg_id` | `BIGINT` | `UNIQUE, NOT NULL` | |
+| `username` | `VARCHAR(255)` | `NULL` | |
+| `role` | `VARCHAR(20)` | `'client'` | `client/provider/admin` |
+| `is_banned` | `BOOLEAN` | `FALSE` | |
+| `joined_at` | `TIMESTAMPTZ` | `NOW()` | |
 
-| Column  | Type         | Notes                       |
-|---------|--------------|-----------------------------|
-| id      | SERIAL       | PK                          |
-| kind    | VARCHAR(50)  | hotel / restaurant / airport / etc. |
-| name    | VARCHAR(255) | Название                    |
-| city_id | INTEGER      | FK → uslugicuba.cities      |
-| zone_id | INTEGER      | FK → uslugicuba.zones       |
+### Таблица: `svc.provider`
+*Поставщики услуг (водители, гиды, фотографы и т.п.). 1:1 к svc.user.*
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `INTEGER IDENTITY` | `PK` | |
+| `user_id` | `INTEGER` | `NOT NULL UNIQUE` | `FK svc."user"(id) ON DELETE CASCADE` |
+| `name` | `VARCHAR(255)` | `NOT NULL` | |
+| `phone` | `VARCHAR(50)` | `NULL` | |
+| `is_active` | `BOOLEAN` | `TRUE` | |
+| `created_at` | `TIMESTAMPTZ` | `NOW()` | |
 
-### 2. uslugicuba.zones
-Зональная система ценообразования (A/B/C/D).
-
-| Column  | Type         | Notes              |
-|---------|--------------|--------------------|
-| id      | SERIAL       | PK                 |
-| code    | VARCHAR(5)   | A, B, C, D         |
-| name    | VARCHAR(255) | Описание зоны      |
-| city_id | INTEGER      | FK → uslugicuba.cities |
-
-### 3. uslugicuba.services
-Категории услуг: такси, кабриолеты, экскурсии, фотографы, рестораны и т.д.
-
-| Column      | Type          | Notes                               |
-|-------------|---------------|-------------------------------------|
-| id          | SERIAL        | PK                                  |
-| category    | VARCHAR(50)   | taxi / cabrio / guide / photo_video / ... |
-| name        | VARCHAR(255)  | Название услуги                     |
-| description | TEXT          | Описание                            |
-| base_price  | NUMERIC(10,2) | Базовая цена                        |
-| city_id     | INTEGER       | FK → uslugicuba.cities              |
-| zone_id     | INTEGER       | FK → uslugicuba.zones               |
-| active      | BOOLEAN       | Активна / нет                       |
-
-### 4. uslugicuba.service_offers
-Предложения внутри услуг (например, тариф или пакет).
-
-| Column      | Type          | Notes                             |
-|-------------|---------------|-----------------------------------|
-| id          | SERIAL        | PK                                |
-| service_id  | INTEGER       | FK → uslugicuba.services          |
-| offer_type  | VARCHAR(50)   | zone_price / package / menu_item / hourly / rental_item |
-| title       | VARCHAR(255)  | Название пакета                   |
-| price       | NUMERIC(10,2) | Стоимость                         |
-| description | TEXT          | Детали предложения                |
-
-### 5. uslugicuba.service_zone_prices
-Привязка цен по зонам.
-
-| Column     | Type          | Notes                     |
-|------------|---------------|---------------------------|
-| id         | SERIAL        | PK                        |
-| service_id | INTEGER       | FK → uslugicuba.services  |
-| zone_id    | INTEGER       | FK → uslugicuba.zones     |
-| price      | NUMERIC(10,2) | Цена для зоны             |
-
-### 6. uslugicuba.vehicles
-(если включена связь с транспортом на уровне услуг)
-
-| Column         | Type          | Notes                     |
-|----------------|---------------|---------------------------|
-| id             | SERIAL        | PK                        |
-| provider_id    | INTEGER       | FK → svc.provider(id)     |
-| service_id     | INTEGER       | FK → uslugicuba.services  |
-| title          | VARCHAR(255)  | Название                  |
-| seats          | INTEGER       | Кол-во мест               |
-| price_per_hour | NUMERIC(10,2) | Цена за час               |
-| photo_file_ids | TEXT[]        | Telegram file_ids         |
-
-### 7. uslugicuba.orders
-Основная таблица заказов.
-
-| Column        | Type        | Default | Notes                            |
-|---------------|-------------|---------|----------------------------------|
-| id            | SERIAL      | —       | Primary key                      |
-| customer_id   | INTEGER     | —       | FK → svc.user(id)                |
-| service_id    | INTEGER     | —       | FK → uslugicuba.services         |
-| provider_id   | INTEGER     | —       | FK → svc.provider(id)            |
-| vehicle_id    | INTEGER     | —       | FK → svc.vehicle(id)             |
-| state         | VARCHAR(50) | —       | Статус выполнения                |
-| city_id       | INTEGER     | —       | FK → uslugicuba.cities           |
-| zone_id       | INTEGER     | —       | FK → uslugicuba.zones            |
-| date_time     | TIMESTAMPTZ | —       | Когда подача / начало            |
-| pax           | INTEGER     | —       | Кол-во человек                   |
-| customer_note | TEXT        | —       | Комментарий клиента              |
-| meta          | JSONB       | '{}'    | Доп. данные (lang, session_id)   |
-| created_at    | TIMESTAMPTZ | NOW()   | Дата создания                    |
-| updated_at    | TIMESTAMPTZ | NOW()   | Обновление                       |
-
-**Triggers:**
-- `orders_updated_at_trigger` — автообновление `updated_at`.
-
-**Indexes:**
-- `idx_orders_state`
-- `idx_orders_created`
-- `idx_orders_when_at`
+### Таблица: `svc.vehicle`
+*Автомобили, предлагаемые провайдерами.*
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `INTEGER IDENTITY` | `PK` | |
+| `provider_id` | `INTEGER` | `NOT NULL` | `FK svc.provider(id) ON DELETE CASCADE` |
+| `title` | `VARCHAR(255)` | `NOT NULL` | |
+| `description` | `TEXT` | `NULL` | |
+| `photo_file_ids` | `TEXT[]` | `'{}'` | |
+| `seats` | `INTEGER` | `NULL` | |
+| `price_per_hour` | `NUMERIC(10,2)` | `NULL` | |
+| `price_details` | `TEXT` | `NULL` | |
+| `status` | `VARCHAR(20)` | `'draft'` | `draft/published/archived` |
+| `created_at` | `TIMESTAMPTZ` | `NOW()` | |
+| `updated_at` | `TIMESTAMPTZ` | `NOW()` | |
 
 ---
 
-## 🔗 Главные связи
-- `svc.user` ───┬─< `svc.provider` ──< `svc.vehicle`
--            │
--            └─< `uslugicuba.orders.customer_id`
-- `svc.provider` ──< `uslugicuba.orders.provider_id`
-- `svc.vehicle`  ──< `uslugicuba.orders.vehicle_id`
-- `uslugicuba.services` ──< `uslugicuba.orders.service_id`
-- `uslugicuba.zones` ──< `uslugicuba.orders.zone_id`
+## Схема: `uslugicuba`
 
-## ✅ Ключевые принципы архитектуры
-- `svc` — отвечает за технических пользователей и инфраструктуру бота.
-- `uslugicuba` — отвечает за каталог услуг, заказы и контент.
-- Все новые бизнес-данные (пакеты, цены, маршруты, заказы) создаются только в `uslugicuba`.
-- В будущем допускается расширение `svc` под другие боты.
+### Таблица: `uslugicuba.customers`
+*Отражение svc.user в доменной модели, хранит доп. данные клиента.*
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `INTEGER IDENTITY` | `PK` | |
+| `user_id` | `INTEGER` | `NOT NULL UNIQUE` | `FK svc."user"(id) ON DELETE CASCADE` |
+| `full_name` | `VARCHAR(255)` | `NULL` | |
+| `phone` | `VARCHAR(50)` | `NULL` | |
+| `lang` | `VARCHAR(10)` | `'ru'` | |
+| `meta` | `JSONB` | `'{}'` | |
+| `created_at` | `TIMESTAMPTZ` | `NOW()` | |
+| `updated_at` | `TIMESTAMPTZ` | `NOW()` | |
+
+### Таблица: `uslugicuba.orders`
+*Основная таблица заказов.*
+| Column | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `INTEGER IDENTITY` | `PK` | |
+| `customer_id` | `INTEGER` | `NOT NULL` | `FK uslugicuba.customers(id) ON DELETE CASCADE` |
+| `service_id` | `INTEGER` | `NULL` | `FK uslugicuba.services(id) ON DELETE SET NULL` |
+| `provider_id` | `INTEGER` | `NULL` | `FK svc.provider(id) ON DELETE SET NULL` |
+| `vehicle_id` | `INTEGER` | `NULL` | `FK svc.vehicle(id) ON DELETE SET NULL` |
+| `state` | `uslugicuba.order_state` | `'new'` | `ENUM: new, pending, assigned, done, canceled` |
+| `date_time` | `TIMESTAMPTZ` | `NULL` | |
+| `pax` | `INTEGER` | `NULL` | |
+| `customer_note` | `TEXT` | `NULL` | |
+| `meta` | `JSONB` | `'{}'` | |
+| `pickup_text` | `TEXT` | `NULL` | |
+| `dropoff_text` | `TEXT` | `NULL` | |
+| `created_at` | `TIMESTAMPTZ` | `NOW()` | |
+| `updated_at` | `TIMESTAMPTZ` | `NOW()` | |
+
+### Другие таблицы (справочники)
+- `uslugicuba.cities`
+- `uslugicuba.zones`
+- `uslugicuba.locations`
+- `uslugicuba.services`
+- `uslugicuba.service_offers`
+- `uslugicuba.service_zone_prices`
+- `uslugicuba.vehicles` (проекция)
+
+---
+## Связи (кратко)
+- `svc.user` ──1:1── `svc.provider` ──1:N── `svc.vehicle`
+-    │
+-    └─1:1── `uslugicuba.customers` ──1:N── `uslugicuba.orders`
+- `uslugicuba.services` ──1:N── `uslugicuba.orders`
+- `uslugicuba.locations` ──(pickup/dropoff)── `uslugicuba.orders`
+
+## Паттерн создания заказа
+1. `get_or_create` user в `svc."user"` по `tg_id`.
+2. `get_or_create` customer в `uslugicuba.customers` по `user_id`.
+3. `INSERT` order в `uslugicuba.orders` с `customer_id`.
