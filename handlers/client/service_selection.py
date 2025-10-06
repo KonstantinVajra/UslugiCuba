@@ -60,12 +60,6 @@ def ensure_place(value, fallback_kind: str = "") -> dict:
     k, i = name_to_kind_id(name, fallback_kind)
     return to_place_dict(k, i, name)
 
-@router.message(F.text.in_({"/start", "/order"}))
-async def start_order(message: Message, state: FSMContext, _: dict):
-    await message.answer(_("start_msg"))
-    await message.answer(_("choose_service"), reply_markup=service_inline_keyboard(_))
-    await state.set_state(OrderServiceState.choosing_service)
-
 @router.callback_query(F.data.startswith("service_"))
 async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: dict):
     service_code = callback.data.replace("service_", "")

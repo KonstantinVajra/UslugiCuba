@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import CLIENT_BOT_TOKEN
 from middlewares.i18n import I18nMiddleware
-from handlers.client import service_selection
+from handlers.client import main_menu, service_selection
 
 
 # +++ ЛОГИ
@@ -25,8 +25,9 @@ async def run_client_bot():
     dp.message.middleware(I18nMiddleware())
     dp.callback_query.middleware(I18nMiddleware())
 
+    # Главное меню должно быть первым, так как оно обрабатывает /start
+    dp.include_router(main_menu.router)
     dp.include_router(service_selection.router)
-    # dp.include_router(taxi_flow.router) # <-- ВРЕМЕННО ОТКЛЮЧАЕМ КОНФЛИКТУЮЩИЙ ОБРАБОТЧИК
 
     # Проверяем БД перед запуском polling (упадём сразу, если что)
     try:

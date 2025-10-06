@@ -3,6 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 def date_selection_keyboard(_) -> InlineKeyboardMarkup:
+    """Создает клавиатуру для выбора даты."""
     today = datetime.now().date()
     dates = [today + timedelta(days=i) for i in range(7)]
 
@@ -19,6 +20,7 @@ def date_selection_keyboard(_) -> InlineKeyboardMarkup:
 
 
 def hour_selection_keyboard() -> InlineKeyboardMarkup:
+    """Создает клавиатуру для выбора часа."""
     buttons = [
         InlineKeyboardButton(
             text=f"{hour:02}",
@@ -32,6 +34,7 @@ def hour_selection_keyboard() -> InlineKeyboardMarkup:
 
 
 def minute_selection_keyboard() -> InlineKeyboardMarkup:
+    """Создает клавиатуру для выбора минут."""
     buttons = [
         InlineKeyboardButton(
             text=f"{minute:02}",
@@ -43,25 +46,8 @@ def minute_selection_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
-def service_inline_keyboard(_) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🚖 {_('Taxi')}", callback_data="service_taxi")],
-        [InlineKeyboardButton(text=f"🚗 {_('Retro car')}", callback_data="service_retro")],
-        [InlineKeyboardButton(text=f"🙋‍♂️ {_('Guide')}", callback_data="service_guide")],
-        [InlineKeyboardButton(text=f"📸 {_('Photographer')}", callback_data="service_photographer")],
-    ])
-
-
-def confirm_inline_keyboard(_) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="✅", callback_data="confirm_yes"),
-            InlineKeyboardButton(text="❌", callback_data="confirm_no"),
-        ]
-    ])
-
-
 def language_keyboard() -> InlineKeyboardMarkup:
+    """Создает клавиатуру для выбора языка (если потребуется)."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
