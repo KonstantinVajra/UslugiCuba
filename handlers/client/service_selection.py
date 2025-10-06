@@ -147,9 +147,11 @@ async def pickup_location_selected(callback: CallbackQuery, state: FSMContext, _
     k, i = name_to_kind_id(location_name, kind)
     await state.update_data(pickup=to_place_dict(k, i, location_name))
 
-    await callback.message.answer(f"✅ {_('pickup_chosen')}: {location_name}")
-    await callback.message.edit_text(_("dropoff_msg"), reply_markup=dropoff_category_keyboard())
     await state.set_state(OrderServiceState.entering_dropoff)
+    await callback.message.edit_text(
+        f"✅ {_('pickup_chosen')}: {location_name}\n\n{_('dropoff_msg')}",
+        reply_markup=dropoff_category_keyboard()
+    )
     await callback.answer()
 
 @router.callback_query(F.data.in_({"dropoff_hotels", "dropoff_restaurants", "dropoff_airports"}), OrderServiceState.entering_dropoff)
@@ -189,9 +191,11 @@ async def dropoff_location_selected(callback: CallbackQuery, state: FSMContext, 
     k, i = name_to_kind_id(location_name, kind)
     await state.update_data(dropoff=to_place_dict(k, i, location_name))
 
-    await callback.message.answer(f"✅ {_('dropoff_chosen')}: {location_name}")
-    await callback.message.edit_text(_("choose_date"), reply_markup=date_selection_keyboard(_))
     await state.set_state(OrderServiceState.entering_date)
+    await callback.message.edit_text(
+        f"✅ {_('dropoff_chosen')}: {location_name}\n\n{_('choose_date')}",
+        reply_markup=date_selection_keyboard(_)
+    )
     await callback.answer()
 
 @router.callback_query(F.data.startswith("date_"), OrderServiceState.entering_date)
