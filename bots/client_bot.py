@@ -26,7 +26,7 @@ async def run_client_bot():
     dp.callback_query.middleware(I18nMiddleware())
 
     dp.include_router(service_selection.router)
-    dp.include_router(taxi_flow.router)
+    # dp.include_router(taxi_flow.router) # <-- ВРЕМЕННО ОТКЛЮЧАЕМ КОНФЛИКТУЮЩИЙ ОБРАБОТЧИК
 
     # Проверяем БД перед запуском polling (упадём сразу, если что)
     try:

@@ -365,7 +365,7 @@ async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot
 
     order_data = {
         "client_tg_id": callback.from_user.id,
-        "lang": (await state.storage.get_data(bot, callback.from_user.id)).get("lang", "ru"),
+        "lang": getattr(callback.from_user, "language_code", "ru"),
         "service": data.get("service_code", "taxi"),
         "pickup_text": ensure_place(data.get("pickup")).get("name"),
         "dropoff_text": ensure_place(data.get("dropoff")).get("name"),
