@@ -36,6 +36,18 @@ async def get_pool():
         NO_DB = True
         return None
 
+async def ping_db():
+    """
+    Проверка соединения с БД на старте. В NO-DB режиме просто пропускаем.
+    """
+    pool = await get_pool()
+    if not pool:
+        logging.warning("Skipping DB ping (NO-DB mode)")
+        return
+
+    async with pool.acquire() as conn:
+        await conn.execute("SELECT 1")
+
 async def get_or_create_user_id(con: asyncpg.Connection, tg_id: int, username: str) -> int:
     """
     Находит пользователя по tg_id. Если не найден — создает нового.
