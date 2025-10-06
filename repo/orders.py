@@ -1,16 +1,11 @@
 # repo/orders.py
-import asyncpg
 import logging
 import json
 from datetime import datetime
-from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSLMODE
+from .db import get_pool, NO_DB
 from .customers import get_or_create_customer_by_tg_id
 
-_pool = None
-NO_DB = False
-
 log = logging.getLogger("repo.orders")
-_pool: asyncpg.Pool | None = None
 
 _FAKE_ID = 0
 def _fake_order_id() -> int:
@@ -18,35 +13,15 @@ def _fake_order_id() -> int:
     _FAKE_ID -= 1
     return _FAKE_ID
 
-async def get_pool():
-    global _pool, NO_DB
-    if _pool or NO_DB:
-        return _pool
-    try:
-        _pool = await asyncpg.create_pool(
-            host=DB_HOST, port=int(DB_PORT), database=DB_NAME,
-            user=DB_USER, password=DB_PASSWORD, ssl="require",
-        )
-        return _pool
-    except Exception as e:
-        logging.warning("DB pool init failed: %s — continuing without DB", e)
-        NO_DB = True
-        return None
-
-async def ping_db():
-    pool = await get_pool()
-    if not pool:
-        logging.warning("Skipping DB ping (NO-DB mode)")
-        return
-    async with pool.acquire() as conn:
-        await conn.execute("SELECT 1")
-
 async def create_order(order: dict) -> int:
-    pool = await get_pool()
-    if not pool:
+    if NO_DB:
         fake_id = _fake_order_id()
         logging.info("NO-DB mode: pretend INSERT order id=%s", fake_id)
         return fake_id
+
+    pool = await get_pool()
+    if not pool:
+        raise ConnectionError("DB pool is not available for order creation")
 
     async with pool.acquire() as con:
         try:

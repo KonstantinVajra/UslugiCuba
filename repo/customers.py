@@ -1,6 +1,6 @@
 # repo/customers.py
 import logging
-from .orders import get_pool
+from .db import get_pool
 
 log = logging.getLogger(__name__)
 

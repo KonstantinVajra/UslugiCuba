@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger("client_bot")
 
 # +++ ПИНГ БД
-from repo.orders import ping_db
+from repo.db import ping_db
 
 
 async def run_client_bot():
