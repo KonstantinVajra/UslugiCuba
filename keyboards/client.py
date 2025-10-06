@@ -1,68 +1,102 @@
-from datetime import datetime, timedelta
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from typing import Literal
 
+# --- Главное меню ---
 
-def date_selection_keyboard(_) -> InlineKeyboardMarkup:
-    today = datetime.now().date()
-    dates = [today + timedelta(days=i) for i in range(7)]
-
-    buttons = [
-        InlineKeyboardButton(
-            text=_("Today") if i == 0 else date.strftime("%d.%m"),
-            callback_data=f"date_{date.strftime('%Y-%m-%d')}"
-        )
-        for i, date in enumerate(dates)
-    ]
-
-    keyboard = [buttons[i:i + 3] for i in range(0, len(buttons), 3)]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-def hour_selection_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        InlineKeyboardButton(
-            text=f"{hour:02}",
-            callback_data=f"hour_{hour}"
-        )
-        for hour in range(8, 21)  # С 08:00 до 20:00
-    ]
-
-    keyboard = [buttons[i:i + 4] for i in range(0, len(buttons), 4)]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-def minute_selection_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        InlineKeyboardButton(
-            text=f"{minute:02}",
-            callback_data=f"minute_{minute}"
-        )
-        for minute in (0, 15, 30, 45)
-    ]
-
-    return InlineKeyboardMarkup(inline_keyboard=[buttons])
-
-
-def service_inline_keyboard(_) -> InlineKeyboardMarkup:
+def main_menu_keyboard(_) -> InlineKeyboardMarkup:
+    """Клавиатура для главного меню с категориями услуг."""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🚖 {_('Taxi & Cabriolets')}", callback_data="service_taxi")]
+        [InlineKeyboardButton(text=_("🚖 Такси / Кабрио"), callback_data="category_taxi")],
+        [InlineKeyboardButton(text=_("🗺️ Экскурсии"), callback_data="category_tours")],
+        [InlineKeyboardButton(text=_("📸 Фотографы"), callback_data="category_photographers")],
+        [InlineKeyboardButton(text=_("💍 Церемонии"), callback_data="category_ceremonies")],
+        [InlineKeyboardButton(text=_("🍽️ Рестораны"), callback_data="category_restaurants")],
+        [InlineKeyboardButton(text=_("🏠 Проживание"), callback_data="category_housing")],
     ])
 
+# --- Меню ветки "Такси" ---
 
-def confirm_inline_keyboard(_) -> InlineKeyboardMarkup:
+def taxi_menu_keyboard(_) -> InlineKeyboardMarkup:
+    """Клавиатура для выбора действия в категории 'Такси'."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=_("📝 Быстрый заказ"), callback_data="taxi_quick_order")],
+        [InlineKeyboardButton(text=_("🚘 Выбрать авто (посмотреть автомобили)"), callback_data="taxi_browse_cars")],
+        [InlineKeyboardButton(text=_("⬅️ Назад"), callback_data="back_to_main_menu")]
+    ])
+
+# --- Навигация и общие кнопки ---
+
+def back_to_main_menu_keyboard(_) -> InlineKeyboardMarkup:
+    """Клавиатура с одной кнопкой 'Назад' в главное меню."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=_("⬅️ Назад"), callback_data="back_to_main_menu")]
+    ])
+
+def home_and_back_keyboard(_, back_callback: str) -> InlineKeyboardMarkup:
+    """
+    Клавиатура с кнопками '🏠 Главное меню' и '⬅️ Назад'.
+    :param back_callback: Callback-data для кнопки "Назад".
+    """
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅", callback_data="confirm_yes"),
-            InlineKeyboardButton(text="❌", callback_data="confirm_no"),
+            InlineKeyboardButton(text=_("🏠 Главное меню"), callback_data="back_to_main_menu"),
+            InlineKeyboardButton(text=_("⬅️ Назад"), callback_data=back_callback)
         ]
     ])
 
+# --- Карусель предложений ---
 
-def language_keyboard() -> InlineKeyboardMarkup:
+def carousel_keyboard(
+    _,
+    current_index: int,
+    total_items: int,
+    category: str,
+    provider_tg_id: int
+) -> InlineKeyboardMarkup:
+    """
+    Динамическая клавиатура для карусели предложений.
+    Отображает навигацию, индикатор и кнопки действий в зависимости от категории.
+    """
+    # 1. Навигация: ⬅️ 1/N ➡️
+    nav_buttons = []
+    if current_index > 0:
+        nav_buttons.append(InlineKeyboardButton(text="⬅️", callback_data=f"prev_{current_index-1}"))
+
+    nav_buttons.append(InlineKeyboardButton(text=f"{current_index + 1}/{total_items}", callback_data="ignore"))
+
+    if current_index < total_items - 1:
+        nav_buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"next_{current_index+1}"))
+
+    # 2. Кнопки действий: "Выбрать" или "Связаться"
+    action_button_row = []
+    if category == 'taxi':
+        action_button_row.append(InlineKeyboardButton(text=_("✅ Выбрать"), callback_data=f"select_offer_{current_index}"))
+    else:
+        action_button_row.append(InlineKeyboardButton(text=_("👤 Связаться с провайдером"), url=f"tg://user?id={provider_tg_id}"))
+
+    # 3. Навигация: Назад и Главное меню
+    back_callback = "back_to_taxi_menu" if category == 'taxi' else "back_to_main_menu"
+
+    navigation_row = [
+        InlineKeyboardButton(text=_("🏠 Главное меню"), callback_data="back_to_main_menu"),
+        InlineKeyboardButton(text=_("⬅️ Назад"), callback_data=back_callback)
+    ]
+
+    keyboard = [nav_buttons, action_button_row, navigation_row]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+# --- Клавиатуры для FSM быстрого заказа ---
+
+def cancel_fsm_keyboard(_) -> InlineKeyboardMarkup:
+    """Кнопка отмены для шагов FSM."""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
-            InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en"),
-            InlineKeyboardButton(text="🇪🇸 Español", callback_data="lang_es"),
-        ]
+        [InlineKeyboardButton(text=_("✖️ Отмена"), callback_data="cancel_fsm")]
+    ])
+
+def confirmation_keyboard(_) -> InlineKeyboardMarkup:
+    """Кнопки 'Подтвердить' и 'Отмена'."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=_("✅ Подтвердить"), callback_data="fsm_confirm")],
+        [InlineKeyboardButton(text=_("✖️ Отмена"), callback_data="cancel_fsm")]
     ])

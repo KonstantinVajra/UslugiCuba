@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import CLIENT_BOT_TOKEN
 from middlewares.i18n import I18nMiddleware
-from handlers.client import service_selection, taxi_flow
+from handlers.client import service_selection, browsing
 
 
 # +++ ЛОГИ
@@ -26,7 +26,7 @@ async def run_client_bot():
     dp.callback_query.middleware(I18nMiddleware())
 
     dp.include_router(service_selection.router)
-    dp.include_router(taxi_flow.router)
+    dp.include_router(browsing.router)
 
     # Проверяем БД перед запуском polling (упадём сразу, если что)
     try:
