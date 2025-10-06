@@ -3,7 +3,6 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from states.client_states import OrderServiceState
 from keyboards.client import (
-    service_inline_keyboard,
     date_selection_keyboard,
     hour_selection_keyboard,
     minute_selection_keyboard,
