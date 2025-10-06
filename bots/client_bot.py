@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import CLIENT_BOT_TOKEN
 from middlewares.i18n import I18nMiddleware
-from handlers.client import service_selection, taxi_flow
+from handlers.client import service_selection
 
 
 # +++ ЛОГИ

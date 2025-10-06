@@ -15,7 +15,6 @@ from keyboards.locations import (
     HOTEL_NAMES, RESTAURANT_NAMES,
     AIRPORT_NAMES, airport_list_keyboard
 )
-from handlers.client.taxi_flow import TaxiOrder
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pricing import quote_price
 from keyboards.locations import HOTEL_NAMES, RESTAURANT_NAMES, AIRPORT_NAMES
