@@ -88,17 +88,16 @@ async def create_order(order: dict) -> int:
             row = await con.fetchrow(
                 """
                 INSERT INTO svc."order"(
-                  status, service, user_id, lang,
+                  status, service, user_id,
                   pickup_text, dropoff_text, when_dt, pax,
                   options, price_quote, currency, price_payload
                 )
-                VALUES ('confirmed','taxi', $1, COALESCE($2,'ru'),
-                        $3, $4, $5, COALESCE($6, 1),
-                        $7::jsonb, $8, 'USD', $9::jsonb)
+                VALUES ('confirmed','taxi', $1,
+                        $2, $3, $4, COALESCE($5, 1),
+                        $6::jsonb, $7, 'USD', $8::jsonb)
                 RETURNING id
                 """,
-                user_id,                              # <--- ИСПРАВЛЕНО
-                order.get("lang"),
+                user_id,
                 order.get("pickup_text", ""),
                 order.get("dropoff_text", ""),
                 order.get("when_dt"),
