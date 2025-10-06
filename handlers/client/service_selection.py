@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from states.client_states import OrderServiceState
@@ -17,23 +17,21 @@ from keyboards.locations import (
 )
 from handlers.client.taxi_flow import TaxiOrder
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pricing import quote_price            # (импорт вверху файла, если ещё нет)
+from pricing import quote_price
 from keyboards.locations import HOTEL_NAMES, RESTAURANT_NAMES, AIRPORT_NAMES
-import os, csv, re
+import os, csv, re, logging
 from functools import lru_cache
+from repo.orders import create_order
+from config import ADMIN_CHAT_ID
 
 router = Router()
+log = logging.getLogger(__name__)
 
 def _norm(s: str) -> str:
-    # убираем всё, кроме [A-Za-z0-9_], и приводим к нижнему регистру
     return re.sub(r"[^\w]+", "", (s or "")).casefold()
 
 @lru_cache
 def _loc_by_name() -> dict[str, tuple[str, str, str]]:
-    """
-    Читает data/locations.csv и строит индекс:
-      normalized(name) -> (kind, id, original_name)
-    """
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     path = os.path.join(base, "data", "locations.csv")
     idx = {}
@@ -46,10 +44,6 @@ def _loc_by_name() -> dict[str, tuple[str, str, str]]:
     return idx
 
 def name_to_kind_id(display_name: str, fallback_kind: str) -> tuple[str, str]:
-    """
-    Возвращает (kind, id) по названию из клавиатуры.
-    Если не нашли — вернём (fallback_kind, "").
-    """
     idx = _loc_by_name()
     key = _norm(display_name)
     if key in idx:
@@ -58,45 +52,41 @@ def name_to_kind_id(display_name: str, fallback_kind: str) -> tuple[str, str]:
     return fallback_kind, ""
 
 def to_place_dict(kind: str, _id: str, name: str) -> dict:
-    """Единый формат хранения точки в state."""
     return {"kind": kind or "", "id": _id or "", "name": name or ""}
 
 def ensure_place(value, fallback_kind: str = "") -> dict:
-    """
-    Приводим старый формат (строка) к новому формату (dict),
-    чтобы не падать, если в state уже лежит строка.
-    """
     if isinstance(value, dict):
         return value
     name = value or ""
     k, i = name_to_kind_id(name, fallback_kind)
     return to_place_dict(k, i, name)
-# === END: helpers ===
+
 @router.message(F.text.in_({"/start", "/order"}))
 async def start_order(message: Message, state: FSMContext, _: dict):
     await message.answer(_("start_msg"))
     await message.answer(_("choose_service"), reply_markup=service_inline_keyboard(_))
     await state.set_state(OrderServiceState.choosing_service)
 
-
 @router.callback_query(F.data.startswith("service_"))
 async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: dict):
-    service_map = {
-        "service_taxi": _("Taxi"),
-        "service_retro": _("Retro car"),
-        "service_guide": _("Guide"),
-        "service_photographer": _("Photographer"),
-    }
-    selected_service = service_map.get(callback.data, callback.data)
-    await state.update_data(service=selected_service)
+    service_code = callback.data.replace("service_", "")
 
-    # 👉 ВАЖНО: оставляем родной поток с категориями (там есть Ресторан)
+    # Сохраняем и код, и отображаемое имя
+    service_map = {
+        "taxi": _("Taxi"),
+        "retro": _("Retro car"),
+        "guide": _("Guide"),
+        "photographer": _("Photographer"),
+    }
+    service_name = service_map.get(service_code, service_code)
+
+    await state.update_data(service_code=service_code, service_name=service_name)
+
     await callback.message.answer(_("enter_pickup"), reply_markup=pickup_category_keyboard())
     await state.set_state(OrderServiceState.entering_pickup)
     await callback.answer()
 
-
-
+# ... (остальные обработчики без изменений) ...
 # Pickup: Airport
 @router.callback_query(F.data == "pickup_airports")
 async def pickup_airports(callback: CallbackQuery, state: FSMContext, _: dict):
@@ -246,7 +236,6 @@ async def dropoff_selected_restaurant(callback: CallbackQuery, state: FSMContext
 
     dropoff_txt = _('dropoff_chosen')
 
-    # ✅ сохраняем В ПРАВИЛЬНОМ ВИДЕ: dict с kind/id/name
     k, i = name_to_kind_id(dropoff_location, "restaurant")
     await state.update_data(dropoff=to_place_dict(k, i, dropoff_location))
 
@@ -302,40 +291,34 @@ async def handle_hour_selection(callback: CallbackQuery, state: FSMContext, _: d
     await callback.answer()
 
 
-
-
 @router.callback_query(F.data.startswith("minute_"), OrderServiceState.entering_minute)
 async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _: dict):
     minute = callback.data.split("_", 1)[1]
     data = await state.get_data()
 
-    date    = data.get("selected_date")
-    hour    = data.get("selected_hour")
-    service = data.get("service", "Taxi")
+    date = data.get("selected_date")
+    hour = data.get("selected_hour")
+    service_code = data.get("service_code", "taxi")
+    service_name = data.get("service_name", _("Taxi"))
 
-    # Приводим к новому формату (dict), на случай если в state внезапно лежит строка
-    pd = ensure_place(data.get("pickup"),  "")
+    pd = ensure_place(data.get("pickup"), "")
     dd = ensure_place(data.get("dropoff"), "")
 
-    # Имена для карточки
-    pickup_name  = pd.get("name") or ""
+    pickup_name = pd.get("name") or ""
     dropoff_name = dd.get("name") or ""
 
-    # (kind,id) для прайсера
     from_kind, from_id = pd.get("kind") or "", pd.get("id") or ""
-    to_kind,   to_id   = dd.get("kind") or "", dd.get("id") or ""
+    to_kind, to_id = dd.get("kind") or "", dd.get("id") or ""
 
-    # сохраняем дату-время
     datetime_str = f"{date} {hour}:{minute}"
     await state.update_data(datetime=datetime_str)
 
-    # Считаем цену строго по id↔id
     when_hhmm = f"{hour}:{minute}"
     try:
         price, payload = quote_price(
-            service="taxi",
+            service=service_code,
             from_kind=from_kind, from_id=from_id,
-            to_kind=to_kind,     to_id=to_id,
+            to_kind=to_kind, to_id=to_id,
             when_hhmm=when_hhmm,
             options=data.get("options", {}),
         )
@@ -344,18 +327,17 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
     except Exception:
         price_line = "💵 Цена: —\n"
 
-    # Локализации (как было)
-    order_summary  = _('order_summary')
-    service_txt    = _('service')
-    from_txt       = _('from')
-    to_txt         = _('to')
-    date_txt       = _('date')
-    time_txt       = _('time')
+    order_summary = _('order_summary')
+    service_txt = _('service')
+    from_txt = _('from')
+    to_txt = _('to')
+    date_txt = _('date')
+    time_txt = _('time')
     confirm_prompt = _('confirm_prompt')
 
     summary = (
         f"📋 {order_summary}:\n\n"
-        f"🛎️ {service_txt}: {service}\n"
+        f"🛎️ {service_txt}: {service_name}\n"
         f"📍 {from_txt}: {pickup_name}\n"
         f"📍 {to_txt}: {dropoff_name}\n"
         f"📅 {date_txt}: {date}\n"
@@ -365,14 +347,61 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
     )
 
     confirm_btn = _("confirm_order_btn")
-    cancel_btn  = _("cancel")
-    confirm_kb  = InlineKeyboardMarkup(
+    cancel_btn = _("cancel")
+    confirm_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ " + confirm_btn, callback_data="confirm_order")],
-            [InlineKeyboardButton(text="❌ " + cancel_btn,  callback_data="cancel_order")]
+            [InlineKeyboardButton(text="❌ " + cancel_btn, callback_data="cancel_order")]
         ]
     )
 
     await callback.message.answer(summary, reply_markup=confirm_kb)
     await state.set_state(OrderServiceState.confirming_order)
+    await callback.answer()
+
+@router.callback_query(F.data == "confirm_order", OrderServiceState.confirming_order)
+async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot, _: dict):
+    data = await state.get_data()
+
+    order_data = {
+        "client_tg_id": callback.from_user.id,
+        "lang": (await state.storage.get_data(bot, callback.from_user.id)).get("lang", "ru"),
+        "service": data.get("service_code", "taxi"),
+        "pickup_text": ensure_place(data.get("pickup")).get("name"),
+        "dropoff_text": ensure_place(data.get("dropoff")).get("name"),
+        "when_dt": data.get("datetime"),
+        "pax": data.get("pax", 1),
+        "options": data.get("options", {}),
+        "price_quote": data.get("price_quote"),
+        "price_payload": data.get("price_payload", {}),
+    }
+
+    try:
+        order_id = await create_order(order_data)
+
+        await callback.message.edit_text(_("order_confirmed_msg").format(order_id=order_id))
+
+        # Уведомление админу
+        if ADMIN_CHAT_ID:
+            admin_msg = (
+                f"✅ Новый заказ #{order_id}\n"
+                f"Услуга: {data.get('service_name')}\n"
+                f"Откуда: {order_data['pickup_text']}\n"
+                f"Куда: {order_data['dropoff_text']}\n"
+                f"Когда: {order_data['when_dt']}\n"
+                f"Цена: {order_data['price_quote']} USD"
+            )
+            await bot.send_message(ADMIN_CHAT_ID, admin_msg)
+
+    except Exception as e:
+        log.exception("Failed to create order or notify admin")
+        await callback.message.edit_text(_("order_failed_msg"))
+
+    await state.clear()
+    await callback.answer()
+
+@router.callback_query(F.data == "cancel_order")
+async def fsm_cancel_order(callback: CallbackQuery, state: FSMContext, _: dict):
+    await state.clear()
+    await callback.message.edit_text(_("order_cancelled_msg"))
     await callback.answer()

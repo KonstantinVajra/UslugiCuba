@@ -28,14 +28,13 @@ async def get_pool():
         return _pool
 
     try:
-        # ↓↓↓ оставь свои параметры/переменные (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, ssl и т.д.)
         _pool = await asyncpg.create_pool(
             host=DB_HOST,
             port=int(DB_PORT),
             database=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD,
-            ssl="require",  # или как у тебя было
+            ssl="require",
         )
         return _pool
     except Exception as e:
@@ -62,11 +61,9 @@ async def create_order(order: dict) -> int:
     """
     Пишет заказ в БД, либо (если БД недоступна) — работает в NO-DB режиме и возвращает отрицательный id.
     """
-    # Безопасно готовим JSON-поля один раз
     options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
     payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
 
-    # Пытаемся получить пул. Если get_pool упадёт — переключаемся в NO-DB.
     try:
         pool = await get_pool()
     except Exception as e:
@@ -74,15 +71,13 @@ async def create_order(order: dict) -> int:
         pool = None
 
     if not pool:
-        # NO-DB режим: не валимся, а отрабатываем "вхолостую"
         fake_id = _fake_order_id()
         logging.info(
-            "NO-DB mode: pretend INSERT order id=%s | pickup=%r -> dropoff=%r | price=%r",
-            fake_id, order.get("pickup_text"), order.get("dropoff_text"), order.get("price_quote")
+            "NO-DB mode: pretend INSERT order id=%s | service=%r | pickup=%r -> dropoff=%r | price=%r",
+            fake_id, order.get("service"), order.get("pickup_text"), order.get("dropoff_text"), order.get("price_quote")
         )
         return fake_id
 
-    # Обычный путь: пишем в БД
     async with pool.acquire() as con:
         try:
             row = await con.fetchrow(
@@ -92,20 +87,21 @@ async def create_order(order: dict) -> int:
                   pickup_text, dropoff_text, when_dt, pax,
                   options, price_quote, currency, price_payload
                 )
-                VALUES ('confirmed','taxi', $1, COALESCE($2,'ru'),
-                        $3, $4, $5, COALESCE($6, 1),
-                        $7::jsonb, $8, 'USD', $9::jsonb)
+                VALUES ('confirmed', $1, $2, COALESCE($3,'ru'),
+                        $4, $5, $6, COALESCE($7, 1),
+                        $8::jsonb, $9, 'USD', $10::jsonb)
                 RETURNING id
                 """,
-                order["client_tg_id"],                # обязательное поле
-                order.get("lang"),                    # может быть None — COALESCE -> 'ru'
-                order.get("pickup_text", ""),         # в твоём сценарии это строка
+                order.get("service", "taxi"),
+                order["client_tg_id"],
+                order.get("lang"),
+                order.get("pickup_text", ""),
                 order.get("dropoff_text", ""),
-                order.get("when_dt"),                 # строка/datetime — как у тебя заведено
-                order.get("pax"),                     # если None — COALESCE -> 1
-                options_json,                         # jsonb
-                order.get("price_quote"),             # число/Decimal — как у тебя заведено
-                payload_json,                         # jsonb
+                order.get("when_dt"),
+                order.get("pax"),
+                options_json,
+                order.get("price_quote"),
+                payload_json,
             )
             if not row or "id" not in row:
                 raise RuntimeError("INSERT returned no id")
@@ -116,5 +112,4 @@ async def create_order(order: dict) -> int:
 
         except Exception as e:
             logging.exception("create_order failed: %s", e)
-            # На проде — лучше пробрасывать; в деве можно fallback'нуться
             raise
