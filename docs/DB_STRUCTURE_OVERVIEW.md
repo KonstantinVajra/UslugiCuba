@@ -1,27 +1,33 @@
-# Database Overview — “Uslugi Cuba” (matches current DB)
-**Generated:** 2025-10-06 13:20:46
+# Обзор структуры БД «Услуги Кубы»
 
-## Schemas
-- `svc` — system: users, providers, vehicles.
-- `uslugicuba` — domain: cities/zones/locations, service catalog, offers/prices, customers, orders.
+Этот документ содержит краткий обзор ключевых схем, таблиц и правил для работы с базой данных.
 
-### Core Relations
+## Схемы
+- **svc**: Системная схема для управления пользователями (`user`), поставщиками услуг (`provider`) и их автомобилями (`vehicle`).
+- **uslugicuba**: Доменная схема, содержащая бизнес-логику: каталог услуг (`services`), географические справочники (`cities`, `zones`, `locations`), клиентов (`customers`) и заказы (`orders`).
+
+## Ключевые правила и поток данных
+1.  **Пользователь → Клиент**:
+    - При первом контакте с ботом, пользователь регистрируется в `svc.user` по его `tg_id`.
+    - Перед созданием первого заказа для этого `svc.user` должна быть создана соответствующая запись в `uslugicuba.customers`. Связь осуществляется через `customers.user_id` -> `user.id`.
+    - Этот поток инкапсулируется в логике `get_or_create`.
+
+2.  **Создание Заказа**:
+    - Заказы всегда создаются в таблице `uslugicuba.orders`.
+    - Заказ обязательно должен быть связан с клиентом через `orders.customer_id`.
+    - **Статус заказа**: При создании используется статус `'new'`. Другие возможные статусы (`pending`, `assigned`, `done`, `canceled`) используются на последующих этапах жизненного цикла заказа. Статуса `confirmed` не существует.
+    - **Время**: Основное поле для времени заказа — `date_time` (TIMESTAMPTZ).
+    - **Адреса**: Для структурированных адресов используются поля `pickup_kind`, `pickup_id`, `pickup_text` и аналогичные `dropoff_*`.
+
+## Связи (упрощенно)
 ```
 svc.user ──1:1── svc.provider ──1:N── svc.vehicle
-   │                         │
+   │
    └─1:1── uslugicuba.customers ──1:N── uslugicuba.orders
-uslugicuba.services ──1:N── uslugicuba.service_offers
-uslugicuba.services ──1:N── uslugicuba.service_zone_prices
-uslugicuba.cities ──1:N── uslugicuba.zones
-uslugicuba.zones  ──1:N── uslugicuba.locations
-uslugicuba.services ──1:N── uslugicuba.orders
-svc.provider / svc.vehicle ──1:N── uslugicuba.orders
-uslugicuba.locations ──(pickup/dropoff)── uslugicuba.orders
+                                           ▲
+                                           │
+uslugicuba.services ───────────────────────┘
 ```
 
-### Orders model (DB truth)
-- Enum: `uslugicuba.order_state` ∈ {`new`, `pending`, `assigned`, `done`, `canceled`}
-- Main time field: `date_time` (compat field `when_at` mirrors it via trigger).
-- Address fields: `pickup_*` / `dropoff_*` with FKs to `uslugicuba.locations`.
-- `orders.customer_id` → `uslugicuba.customers(id)` (not `svc.user`).
-- Index note: **`idx_orders_when_at` is on `date_time` in DB**.
+## Важный нюанс по индексам
+- В таблице `uslugicuba.orders` есть индекс `idx_orders_when_at`, но он по факту ссылается на поле `date_time`. Это сделано для обратной совместимости. При написании запросов следует ориентироваться на `date_time`.

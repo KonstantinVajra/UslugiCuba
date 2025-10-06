@@ -362,12 +362,17 @@ async def handle_minute_selection(callback: CallbackQuery, state: FSMContext, _:
 async def fsm_confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot, _: dict):
     data = await state.get_data()
 
+    pickup_dict = ensure_place(data.get("pickup"))
+    dropoff_dict = ensure_place(data.get("dropoff"))
+
     order_data = {
         "client_tg_id": callback.from_user.id,
         "lang": getattr(callback.from_user, "language_code", "ru"),
         "service": data.get("service_code", "taxi"),
-        "pickup_text": ensure_place(data.get("pickup")).get("name"),
-        "dropoff_text": ensure_place(data.get("dropoff")).get("name"),
+        "pickup_kind": pickup_dict.get("kind"),
+        "pickup_text": pickup_dict.get("name"),
+        "dropoff_kind": dropoff_dict.get("kind"),
+        "dropoff_text": dropoff_dict.get("name"),
         "when_dt": data.get("datetime"),
         "pax": data.get("pax", 1),
         "options": data.get("options", {}),
