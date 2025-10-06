@@ -1,14 +1,13 @@
 # handlers/client/browsing.py
 import logging
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InputMediaPhoto, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import CallbackQuery, InputMediaPhoto
 from aiogram.fsm.context import FSMContext
 
 from repo.offers import get_published_offers_by_category
 from keyboards.client import carousel_keyboard, back_to_main_menu_keyboard, taxi_menu_keyboard
 from keyboards.locations import pickup_category_keyboard
-from states.client_states import OrderServiceState # Используем правильные состояния
-from middlewares.i18n import gettext as _
+from states.client_states import OrderServiceState
 
 router = Router()
 
@@ -90,7 +89,7 @@ async def show_offer_carousel(
 # --- Обработчики карусели ---
 
 @router.callback_query(F.data.in_({"taxi_browse_cars", "category_tours", "category_photographers", "category_ceremonies", "category_restaurants", "category_housing"}))
-async def cb_start_browsing(callback: CallbackQuery, state: FSMContext):
+async def cb_start_browsing(callback: CallbackQuery, state: FSMContext, _: dict):
     category_map = {
         "taxi_browse_cars": "taxi",
         "category_tours": "tours",
@@ -104,7 +103,7 @@ async def cb_start_browsing(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("prev_") | F.data.startswith("next_"))
-async def cb_navigate_carousel(callback: CallbackQuery, state: FSMContext):
+async def cb_navigate_carousel(callback: CallbackQuery, state: FSMContext, _: dict):
     try:
         new_index = int(callback.data.split("_")[1])
         data = await state.get_data()
@@ -117,7 +116,7 @@ async def cb_navigate_carousel(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("select_offer_"))
-async def cb_select_offer(callback: CallbackQuery, state: FSMContext):
+async def cb_select_offer(callback: CallbackQuery, state: FSMContext, _: dict):
     try:
         index = int(callback.data.split("_")[-1])
         data = await state.get_data()
@@ -149,7 +148,7 @@ async def cb_select_offer(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data == "back_to_taxi_menu")
-async def cb_back_to_taxi_menu(callback: CallbackQuery):
+async def cb_back_to_taxi_menu(callback: CallbackQuery, _: dict):
     await callback.message.edit_text(
         _("Такси / Кабриолеты — выберите действие:"),
         reply_markup=taxi_menu_keyboard(_)
