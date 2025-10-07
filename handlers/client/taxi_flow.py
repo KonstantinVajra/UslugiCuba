@@ -12,6 +12,7 @@ from aiogram.types import (
 from config import HOURS_FROM, HOURS_TO, ADMIN_CHAT_ID
 from middlewares.i18n import _
 from repo.orders import create_order
+from services.publisher import publish_order
 
 # ← добавили работу со справочниками и ценами
 from data_loader import load_locations
@@ -398,6 +399,24 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
             )
         except Exception:
             pass
+
+    # --- Публикация в канал ---
+    try:
+        await publish_order(
+            bot=callback.bot,
+            order_data={
+                "order_id": order_id,
+                "client_tg_id": callback.from_user.id,
+                "pickup_text": pickup_name,
+                "dropoff_text": drop_name,
+                "when_hhmm": when_hhmm or "сейчас",
+                "pax": int(data.get("pax") or 1),
+                "price_quote": price,
+            },
+        )
+    except Exception:
+        log.exception("publish_order failed")
+        # не показываем ошибку юзеру, т.к. это внутренняя проблема
 
     await state.clear()
 
