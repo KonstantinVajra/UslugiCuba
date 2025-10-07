@@ -9,7 +9,7 @@ load_dotenv()
 CLIENT_BOT_TOKEN = os.getenv("CLIENT_BOT_TOKEN", "")
 
 # === ADMIN CHAT ===
-ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "0"))
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID") or "0")
 
 # === TIME SLOTS ===
 HOURS_FROM = int(os.getenv("HOURS_FROM", "8"))

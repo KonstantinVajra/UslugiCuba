@@ -39,23 +39,11 @@ class I18nMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
-def _get_tr(lang: str):
-    return gettext.translation("bot", localedir="locales", languages=[lang], fallback=True)
-
-def _(key: str, lang: str | None = None):
-    tr = _get_tr(lang or "ru")
-    return tr.gettext(key)
-
-# Aiogram middleware (легкий)
-from aiogram import BaseMiddleware
-from typing import Callable, Awaitable, Dict, Any
-
-class I18nMiddleware(BaseMiddleware):
-    def __init__(self, default_lang: str = "ru"):
-        self.default_lang = default_lang
-        super().__init__()
-
-    async def __call__(self, handler: Callable[[Any, Dict[str, Any]], Awaitable[Any]], event: Any, data: Dict[str, Any]) -> Any:
-        data["lang"] = getattr(getattr(event, "from_user", None), "language_code", None) or self.default_lang
-        data["_"] = lambda key: _(key, data["lang"])
-        return await handler(event, data)
+def _(key: str, lang: str = 'ru'):
+    """
+    Возвращает перевод для указанного ключа.
+    Используется там, где нет доступа к middleware (например, в клавиатурах).
+    """
+    if lang not in LOCALES:
+        lang = 'ru'  # fallback
+    return LOCALES[lang].gettext(key)
