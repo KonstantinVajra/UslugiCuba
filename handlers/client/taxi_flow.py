@@ -401,6 +401,7 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
             pass
 
     # --- Публикация в канал ---
+    log.info("Attempting to publish order card for order_id=%s", order_id)
     try:
         await publish_order(
             bot=callback.bot,
