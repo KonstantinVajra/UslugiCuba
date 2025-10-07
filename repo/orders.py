@@ -58,49 +58,55 @@ async def ping_db():
 
 async def create_order(order: dict) -> int:
     """
-    Пишет заказ в БД, либо (если БД недоступна) — работает в NO-DB режиме и возвращает отрицательный id.
+    Создает заказ в БД, следуя правильной двухэтапной логике:
+    1. Get-or-create `svc.user`
+    2. Get-or-create `uslugicuba.customers`
+    3. Insert `uslugicuba.orders`
     """
-    # Безопасно готовим JSON-поля один раз
-    options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
-    payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
-
-    # Пытаемся получить пул.
     pool = await get_pool()
     if not pool:
-        # NO-DB режим
-        fake_id = _fake_order_id()
-        logging.info(
-            "NO-DB mode: pretend INSERT order id=%s | pickup=%r -> dropoff=%r | price=%r",
-            fake_id, order.get("pickup_text"), order.get("dropoff_text"), order.get("price_quote")
-        )
-        return fake_id
+        return _fake_order_id()
 
-    # Обычный путь: пишем в БД
     async with pool.acquire() as con:
         try:
-            # 1. Get-or-create customer
-            customer_id = await con.fetchval(
+            # 1. Get-or-create svc.user
+            user_id = await con.fetchval(
                 """
-                INSERT INTO uslugicuba.customers (client_tg_id, lang)
+                INSERT INTO svc."user" (tg_id, username)
                 VALUES ($1, $2)
-                ON CONFLICT (client_tg_id) DO UPDATE SET lang = $2
+                ON CONFLICT (tg_id) DO UPDATE SET username = $2
                 RETURNING id
                 """,
                 order["client_tg_id"],
+                order.get("username"),
+            )
+
+            # 2. Get-or-create uslugicuba.customers
+            customer_id = await con.fetchval(
+                """
+                INSERT INTO uslugicuba.customers (user_id, lang)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id) DO UPDATE SET lang = $2
+                RETURNING id
+                """,
+                user_id,
                 order.get("lang", "ru"),
             )
 
-            # 2. Insert order
+            # 3. Insert order
+            options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
+            payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
+
             row = await con.fetchrow(
                 """
                 INSERT INTO uslugicuba.orders(
-                  status, service, customer_id,
-                  pickup_text, dropoff_text, when_dt, pax,
-                  options, price_quote, currency, price_payload
+                  customer_id, state, service,
+                  pickup_text, dropoff_text, when_at, pax,
+                  options, price_quote, currency, price_payload, meta
                 )
-                VALUES ('new', 'taxi', $1,
+                VALUES ($1, 'new', 'taxi',
                         $2, $3, $4, COALESCE($5, 1),
-                        $6::jsonb, $7, 'USD', $8::jsonb)
+                        $6::jsonb, $7, 'USD', $8::jsonb, $9::jsonb)
                 RETURNING id
                 """,
                 customer_id,
@@ -111,14 +117,48 @@ async def create_order(order: dict) -> int:
                 options_json,
                 order.get("price_quote"),
                 payload_json,
+                # Сохраняем исходные данные на всякий случай
+                json.dumps({"source_data": order}, ensure_ascii=False, default=str),
             )
             if not row or "id" not in row:
                 raise RuntimeError("INSERT returned no id")
 
             oid = int(row["id"])
-            logging.info("Order inserted id=%s", oid)
+            logging.info("Order inserted id=%s (customer_id=%s, user_id=%s)", oid, customer_id, user_id)
             return oid
 
         except Exception as e:
             logging.exception("create_order failed: %s", e)
             raise
+
+# Legacy function, in case it's used somewhere else.
+async def _create_order_legacy(order: dict) -> int:
+    log.warning("Using legacy create_order function. This should be updated.")
+    options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
+    payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
+    pool = await get_pool()
+    if not pool:
+        return _fake_order_id()
+    async with pool.acquire() as con:
+        row = await con.fetchrow(
+            """
+            INSERT INTO svc."order"(
+              status, service, client_tg_id, lang,
+              pickup_text, dropoff_text, when_dt, pax,
+              options, price_quote, currency, price_payload
+            )
+            VALUES ('confirmed','taxi', $1, COALESCE($2,'ru'),
+                    $3, $4, $5, COALESCE($6, 1),
+                    $7::jsonb, $8, 'USD', $9::jsonb)
+            RETURNING id
+            """,
+            order["client_tg_id"], order.get("lang"),
+            order.get("pickup_text", ""), order.get("dropoff_text", ""),
+            order.get("when_dt"), order.get("pax"),
+            options_json, order.get("price_quote"), payload_json,
+        )
+        if not row or "id" not in row:
+            raise RuntimeError("INSERT returned no id")
+        oid = int(row["id"])
+        logging.info("Order inserted id=%s", oid)
+        return oid

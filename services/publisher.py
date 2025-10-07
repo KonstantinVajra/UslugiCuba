@@ -12,6 +12,10 @@ async def _send_message_with_retries(bot: Bot, text: str):
     """
     Пытается отправить сообщение несколько раз с задержками.
     """
+    if not ORDERS_CHANNEL_ID or int(ORDERS_CHANNEL_ID) == 0:
+        log.warning("ORDERS_CHANNEL_ID is not set or is 0, skipping publication.")
+        return
+
     if not PUBLISH_MAX_RETRIES or not PUBLISH_BACKOFFS:
         log.warning("Retry mechanism is not configured. Sending once.")
         try:

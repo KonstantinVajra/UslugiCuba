@@ -25,9 +25,9 @@ DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
 
 
 # === PUBLISHING ===
-ORDERS_CHANNEL_ID = int(os.getenv("ORDERS_CHANNEL_ID", "0"))
-PUBLISH_MAX_RETRIES = int(os.getenv("PUBLISH_MAX_RETRIES", "3"))
-PUBLISH_BACKOFFS = os.getenv("PUBLISH_BACKOFFS", "30,120,600")
+ORDERS_CHANNEL_ID = int(os.getenv("ORDERS_CHANNEL_ID") or "0")
+PUBLISH_MAX_RETRIES = int(os.getenv("PUBLISH_MAX_RETRIES") or "3")
+PUBLISH_BACKOFFS = os.getenv("PUBLISH_BACKOFFS") or "30,120,600"
 
 
 assert CLIENT_BOT_TOKEN, "CLIENT_BOT_TOKEN is missing in .env"
