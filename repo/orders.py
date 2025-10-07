@@ -58,11 +58,12 @@ async def ping_db():
 
 async def create_order(order: dict) -> int:
     """
-    Создает заказ в БД, следуя правильной трехэтапной логике:
-    1. Get-or-create `svc.user`
-    2. Get-or-create `uslugicuba.customers`
-    3. Get `service_id` for 'taxi'
-    4. Insert `uslugicuba.orders`
+    Создает заказ в БД, следуя правильной логике и схеме:
+    1. Get-or-create `svc.user`.
+    2. Get-or-create `uslugicuba.customers`.
+    3. Get `service_id` for 'taxi'.
+    4. Pack extra data into `meta` JSONB field.
+    5. Insert `uslugicuba.orders`.
     """
     pool = await get_pool()
     if not pool:
@@ -101,20 +102,24 @@ async def create_order(order: dict) -> int:
             if not service_id:
                 log.warning("Service 'taxi' not found in uslugicuba.services table. `service_id` will be NULL.")
 
-            # 4. Insert order
-            options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
-            payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
+            # 4. Pack extra data into `meta` JSONB field
+            meta_payload = {
+                "options": order.get("options", {}),
+                "price_quote": order.get("price_quote"),
+                "price_payload": order.get("price_payload", {}),
+                "source_data": order # For debugging
+            }
+            meta_json = json.dumps(meta_payload, ensure_ascii=False, default=str)
 
+            # 5. Insert order with correct columns
             row = await con.fetchrow(
                 """
                 INSERT INTO uslugicuba.orders(
                   customer_id, service_id, state,
                   pickup_text, dropoff_text, when_at, pax,
-                  options, price_quote, currency, price_payload, meta
+                  meta
                 )
-                VALUES ($1, $2, 'new',
-                        $3, $4, $5, COALESCE($6, 1),
-                        $7::jsonb, $8, 'USD', $9::jsonb, $10::jsonb)
+                VALUES ($1, $2, 'new', $3, $4, $5, COALESCE($6, 1), $7::jsonb)
                 RETURNING id
                 """,
                 customer_id,
@@ -123,10 +128,7 @@ async def create_order(order: dict) -> int:
                 order.get("dropoff_text", ""),
                 order.get("when_dt"),
                 order.get("pax"),
-                options_json,
-                order.get("price_quote"),
-                payload_json,
-                json.dumps({"source_data": order}, ensure_ascii=False, default=str),
+                meta_json,
             )
             if not row or "id" not in row:
                 raise RuntimeError("INSERT returned no id")
