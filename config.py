@@ -23,6 +23,13 @@ DB_USER = os.getenv("DB_USER", "")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
 
+
+# === PUBLISHING ===
+ORDERS_CHANNEL_ID = int(os.getenv("ORDERS_CHANNEL_ID", "0"))
+PUBLISH_MAX_RETRIES = int(os.getenv("PUBLISH_MAX_RETRIES", "3"))
+PUBLISH_BACKOFFS = os.getenv("PUBLISH_BACKOFFS", "30,120,600")
+
+
 assert CLIENT_BOT_TOKEN, "CLIENT_BOT_TOKEN is missing in .env"
 
 # в конце config.py
@@ -39,4 +46,8 @@ config = SimpleNamespace(
     DB_USER=DB_USER,
     DB_PASSWORD=DB_PASSWORD,
     DB_SSLMODE=DB_SSLMODE,
+    # publisher
+    ORDERS_CHANNEL_ID=ORDERS_CHANNEL_ID,
+    PUBLISH_MAX_RETRIES=PUBLISH_MAX_RETRIES,
+    PUBLISH_BACKOFFS=PUBLISH_BACKOFFS,
 )
