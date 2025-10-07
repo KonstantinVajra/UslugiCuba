@@ -371,6 +371,7 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
     try:
         order_id = await create_order({
             "client_tg_id": callback.from_user.id,
+            "username": callback.from_user.username,
             "lang": getattr(callback.from_user, "language_code", "ru"),
             "pickup_text": pickup_name,
             "dropoff_text": drop_name,
@@ -401,7 +402,6 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
             pass
 
     # --- Публикация в канал ---
-    log.info("Attempting to publish order card for order_id=%s", order_id)
     try:
         await publish_order(
             bot=callback.bot,

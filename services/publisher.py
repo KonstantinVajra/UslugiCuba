@@ -12,8 +12,6 @@ async def _send_message_with_retries(bot: Bot, text: str):
     """
     Пытается отправить сообщение несколько раз с задержками.
     """
-    log.info(f"Attempting to send message to channel ID: {ORDERS_CHANNEL_ID}")
-
     if not ORDERS_CHANNEL_ID or int(ORDERS_CHANNEL_ID) == 0:
         log.warning("ORDERS_CHANNEL_ID is not set or is 0, skipping publication.")
         return
@@ -37,14 +35,13 @@ async def _send_message_with_retries(bot: Bot, text: str):
 
     for i in range(max_retries):
         try:
-            log.info(f"Sending message... (Attempt {i+1}/{max_retries})")
             await bot.send_message(
                 chat_id=ORDERS_CHANNEL_ID,
                 text=text,
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )
-            log.info("Order card published successfully to channel %s", ORDERS_CHANNEL_ID)
+            log.info("Order card published to channel %s", ORDERS_CHANNEL_ID)
             return
         except Exception as e:
             log.warning(
@@ -80,7 +77,6 @@ async def publish_order(bot: Bot, order_data: dict):
     Публикует карточку заказа в Telegram-канал.
     Запускает отправку в фоне, чтобы не блокировать основной поток.
     """
-    log.info(f"publish_order called with data: {order_data}")
     if not ORDERS_CHANNEL_ID or int(ORDERS_CHANNEL_ID) == 0:
         log.warning("ORDERS_CHANNEL_ID is not set or is 0, skipping publication.")
         return
@@ -95,11 +91,8 @@ async def publish_order(bot: Bot, order_data: dict):
             pax=order_data.get("pax", 1),
             client_tg_id=order_data["client_tg_id"],
         )
-        log.info(f"Formatted order card text for channel publication:\n{text}")
-
         # Запускаем отправку в фоне
         asyncio.create_task(_send_message_with_retries(bot, text))
-        log.info("Task for _send_message_with_retries has been created.")
 
     except KeyError as e:
         log.exception("Failed to format order card due to missing key: %s. Order data: %s", e, order_data)

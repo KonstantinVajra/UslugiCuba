@@ -94,13 +94,12 @@ async def create_order(order: dict) -> int:
                 order.get("lang", "ru"),
             )
 
-            # 3. Get service_id for 'taxi'
+            # 3. Get service_id for 'taxi' (without failing)
             service_id = await con.fetchval(
                 "SELECT id FROM uslugicuba.services WHERE category = 'taxi' LIMIT 1"
             )
             if not service_id:
-                log.error("Service 'taxi' not found in uslugicuba.services table.")
-                raise ValueError("Taxi service not configured in the database")
+                log.warning("Service 'taxi' not found in uslugicuba.services table. `service_id` will be NULL.")
 
             # 4. Insert order
             options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
@@ -119,7 +118,7 @@ async def create_order(order: dict) -> int:
                 RETURNING id
                 """,
                 customer_id,
-                service_id,
+                service_id, # Can be NULL
                 order.get("pickup_text", ""),
                 order.get("dropoff_text", ""),
                 order.get("when_dt"),
