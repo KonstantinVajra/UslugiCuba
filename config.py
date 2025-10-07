@@ -11,6 +11,11 @@ CLIENT_BOT_TOKEN = os.getenv("CLIENT_BOT_TOKEN", "")
 # === ADMIN CHAT ===
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID") or "0")
 
+# === PUBLISHING ===
+ORDERS_CHANNEL_ID = int(os.getenv("ORDERS_CHANNEL_ID") or "0")
+PUBLISH_MAX_RETRIES = int(os.getenv("PUBLISH_MAX_RETRIES") or "3")
+PUBLISH_BACKOFFS = os.getenv("PUBLISH_BACKOFFS") or "30,120,600"
+
 # === TIME SLOTS ===
 HOURS_FROM = int(os.getenv("HOURS_FROM", "8"))
 HOURS_TO   = int(os.getenv("HOURS_TO", "20"))
@@ -22,13 +27,6 @@ DB_NAME = os.getenv("DB_NAME", "services")
 DB_USER = os.getenv("DB_USER", "")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
-
-
-# === PUBLISHING ===
-ORDERS_CHANNEL_ID = int(os.getenv("ORDERS_CHANNEL_ID") or "0")
-PUBLISH_MAX_RETRIES = int(os.getenv("PUBLISH_MAX_RETRIES") or "3")
-PUBLISH_BACKOFFS = os.getenv("PUBLISH_BACKOFFS") or "30,120,600"
-
 
 assert CLIENT_BOT_TOKEN, "CLIENT_BOT_TOKEN is missing in .env"
 

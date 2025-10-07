@@ -44,8 +44,14 @@ def minute_selection_keyboard() -> InlineKeyboardMarkup:
 
 
 def service_inline_keyboard(_) -> InlineKeyboardMarkup:
+    """
+    Возвращает клавиатуру с полным списком услуг.
+    """
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🚖 {_('Taxi & Cabriolets')}", callback_data="service_taxi")]
+        [InlineKeyboardButton(text=f"🚖 {_('Taxi')}", callback_data="service_taxi")],
+        [InlineKeyboardButton(text=f"🚗 {_('Retro car')}", callback_data="service_retro")],
+        [InlineKeyboardButton(text=f"🤵 {_('Guide')}", callback_data="service_guide")],
+        [InlineKeyboardButton(text=f"📸 {_('Photographer')}", callback_data="service_photographer")]
     ])
 
 

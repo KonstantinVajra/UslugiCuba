@@ -58,10 +58,11 @@ async def ping_db():
 
 async def create_order(order: dict) -> int:
     """
-    Создает заказ в БД, следуя правильной двухэтапной логике:
+    Создает заказ в БД, следуя правильной трехэтапной логике:
     1. Get-or-create `svc.user`
     2. Get-or-create `uslugicuba.customers`
-    3. Insert `uslugicuba.orders`
+    3. Get `service_id` for 'taxi'
+    4. Insert `uslugicuba.orders`
     """
     pool = await get_pool()
     if not pool:
@@ -93,23 +94,32 @@ async def create_order(order: dict) -> int:
                 order.get("lang", "ru"),
             )
 
-            # 3. Insert order
+            # 3. Get service_id for 'taxi'
+            service_id = await con.fetchval(
+                "SELECT id FROM uslugicuba.services WHERE category = 'taxi' LIMIT 1"
+            )
+            if not service_id:
+                log.error("Service 'taxi' not found in uslugicuba.services table.")
+                raise ValueError("Taxi service not configured in the database")
+
+            # 4. Insert order
             options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
             payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
 
             row = await con.fetchrow(
                 """
                 INSERT INTO uslugicuba.orders(
-                  customer_id, state, service,
+                  customer_id, service_id, state,
                   pickup_text, dropoff_text, when_at, pax,
                   options, price_quote, currency, price_payload, meta
                 )
-                VALUES ($1, 'new', 'taxi',
-                        $2, $3, $4, COALESCE($5, 1),
-                        $6::jsonb, $7, 'USD', $8::jsonb, $9::jsonb)
+                VALUES ($1, $2, 'new',
+                        $3, $4, $5, COALESCE($6, 1),
+                        $7::jsonb, $8, 'USD', $9::jsonb, $10::jsonb)
                 RETURNING id
                 """,
                 customer_id,
+                service_id,
                 order.get("pickup_text", ""),
                 order.get("dropoff_text", ""),
                 order.get("when_dt"),
@@ -117,7 +127,6 @@ async def create_order(order: dict) -> int:
                 options_json,
                 order.get("price_quote"),
                 payload_json,
-                # Сохраняем исходные данные на всякий случай
                 json.dumps({"source_data": order}, ensure_ascii=False, default=str),
             )
             if not row or "id" not in row:
@@ -130,35 +139,3 @@ async def create_order(order: dict) -> int:
         except Exception as e:
             logging.exception("create_order failed: %s", e)
             raise
-
-# Legacy function, in case it's used somewhere else.
-async def _create_order_legacy(order: dict) -> int:
-    log.warning("Using legacy create_order function. This should be updated.")
-    options_json = json.dumps(order.get("options", {}), ensure_ascii=False)
-    payload_json = json.dumps(order.get("price_payload", {}), ensure_ascii=False)
-    pool = await get_pool()
-    if not pool:
-        return _fake_order_id()
-    async with pool.acquire() as con:
-        row = await con.fetchrow(
-            """
-            INSERT INTO svc."order"(
-              status, service, client_tg_id, lang,
-              pickup_text, dropoff_text, when_dt, pax,
-              options, price_quote, currency, price_payload
-            )
-            VALUES ('confirmed','taxi', $1, COALESCE($2,'ru'),
-                    $3, $4, $5, COALESCE($6, 1),
-                    $7::jsonb, $8, 'USD', $9::jsonb)
-            RETURNING id
-            """,
-            order["client_tg_id"], order.get("lang"),
-            order.get("pickup_text", ""), order.get("dropoff_text", ""),
-            order.get("when_dt"), order.get("pax"),
-            options_json, order.get("price_quote"), payload_json,
-        )
-        if not row or "id" not in row:
-            raise RuntimeError("INSERT returned no id")
-        oid = int(row["id"])
-        logging.info("Order inserted id=%s", oid)
-        return oid
