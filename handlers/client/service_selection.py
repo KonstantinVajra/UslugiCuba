@@ -91,6 +91,7 @@ async def show_cuba_services(callback: CallbackQuery, _: dict):
 
 @router.callback_query(F.data == "back_to_main_menu")
 async def back_to_main_menu(callback: CallbackQuery, state: FSMContext, _: dict):
+    # This handler should reset the state to the main menu selection
     await callback.message.edit_text(
         _("choose_service"),
         reply_markup=service_inline_keyboard(_)
@@ -104,8 +105,8 @@ async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: d
     service_map = {
         "service_taxi": _("Taxi"),
         "service_retro": _("Retro car"),
-        "service_guide": _("Guide"),
-        "service_photographer": _("Photographer"),
+        "service_guide": _("Guides and excursions"),
+        "service_photographer": _("Photo and video"),
         "service_stylist": _("Stylists and make-up artists"),
         "service_restaurant": _("Restaurants and home cooking"),
         "service_wedding": _("Wedding ceremonies"),
