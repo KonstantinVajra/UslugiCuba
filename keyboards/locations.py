@@ -96,7 +96,7 @@ HOTEL_EMOJIS: dict[str, str] = {
     "Villa Cuba": "🇨🇺",
     "Villa Tortuga": "🐢",
 }
-HOTEL_NAMES = list(HOTEL_EMOJIS.keys())
+HOTEL_NAMES = list(HOTEL_EMOJIS.keys())  # Рядом с HOTEL_EMOJIS
 
 # --- УНИКАЛЬНЫЕ ЭМОДЗИ ДЛЯ КАЖДОГО РЕСТОРАНА ---
 RESTAURANT_EMOJIS: dict[str, str] = {

@@ -30,7 +30,7 @@ async def _send_message_with_retries(bot: Bot, text: str):
             log.error("Failed to publish order to channel %s: %s", ORDERS_CHANNEL_ID, e)
         return
 
-    backoffs = [int(b) for b in PUBLISH_BACKOFFS.split(",")]
+    backoffs = [int(b) for b in str(PUBLISH_BACKOFFS).split(",")]
     max_retries = int(PUBLISH_MAX_RETRIES)
 
     for i in range(max_retries):
@@ -62,12 +62,14 @@ def format_order_card(order_id: int, pickup: str, dropoff: str, when: str, price
     """
     Форматирует карточку заказа для публикации.
     """
+    # Fallback for price if it's None
+    price_str = f"{price} USD" if price is not None else "N/A"
     return (
         f"<b>✅ Новый заказ #{order_id}</b>\n\n"
         f"<b>Маршрут:</b> {hd.quote(pickup)} → {hd.quote(dropoff)}\n"
         f"<b>Время:</b> {when}\n"
         f"<b>Пассажиры:</b> {pax}\n"
-        f"<b>Цена:</b> {price} USD\n\n"
+        f"<b>Цена:</b> {price_str}\n\n"
         f"<b>Клиент:</b> tg://user?id={client_tg_id}"
     )
 
@@ -87,7 +89,7 @@ async def publish_order(bot: Bot, order_data: dict):
             pickup=order_data["pickup_text"],
             dropoff=order_data["dropoff_text"],
             when=order_data.get("when_hhmm", "сейчас"),
-            price=order_data["price_quote"],
+            price=order_data.get("price_quote"),
             pax=order_data.get("pax", 1),
             client_tg_id=order_data["client_tg_id"],
         )

@@ -4,7 +4,6 @@ from aiogram.fsm.context import FSMContext
 from states.client_states import OrderServiceState
 from keyboards.client import (
     service_inline_keyboard,
-    cuba_services_keyboard,
     date_selection_keyboard,
     hour_selection_keyboard,
     minute_selection_keyboard,
@@ -80,39 +79,13 @@ async def start_order(message: Message, state: FSMContext, _: dict):
     await state.set_state(OrderServiceState.choosing_service)
 
 
-@router.callback_query(F.data == "show_cuba_services")
-async def show_cuba_services(callback: CallbackQuery, _: dict):
-    await callback.message.edit_text(
-        _("choose_service"),
-        reply_markup=cuba_services_keyboard(_)
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "back_to_main_menu")
-async def back_to_main_menu(callback: CallbackQuery, state: FSMContext, _: dict):
-    # This handler should reset the state to the main menu selection
-    await callback.message.edit_text(
-        _("choose_service"),
-        reply_markup=service_inline_keyboard(_)
-    )
-    await state.set_state(OrderServiceState.choosing_service)
-    await callback.answer()
-
-
 @router.callback_query(F.data.startswith("service_"))
 async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: dict):
     service_map = {
         "service_taxi": _("Taxi"),
         "service_retro": _("Retro car"),
-        "service_guide": _("Guides and excursions"),
-        "service_photographer": _("Photo and video"),
-        "service_stylist": _("Stylists and make-up artists"),
-        "service_restaurant": _("Restaurants and home cooking"),
-        "service_wedding": _("Wedding ceremonies"),
-        "service_dress_rental": _("Dress rental"),
-        "service_fixer": _("Your man / Fixer"),
-        "service_individual": _("Individual requests"),
+        "service_guide": _("Guide"),
+        "service_photographer": _("Photographer"),
     }
     selected_service = service_map.get(callback.data, callback.data)
     await state.update_data(service=selected_service)

@@ -44,28 +44,8 @@ def minute_selection_keyboard() -> InlineKeyboardMarkup:
 
 
 def service_inline_keyboard(_) -> InlineKeyboardMarkup:
-    """
-    Главное меню с двумя кнопками.
-    """
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🚖 {_('Taxi & Cabriolets')}", callback_data="svc:taxi")],
-        [InlineKeyboardButton(text=f"🇨🇺 {_('Cuba Services')}", callback_data="show_cuba_services")]
-    ])
-
-def cuba_services_keyboard(_) -> InlineKeyboardMarkup:
-    """
-    Клавиатура для "Услуг Кубы".
-    """
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🧭 {_('Guides and excursions')}", callback_data="service_guide")],
-        [InlineKeyboardButton(text=f"📸 {_('Photo and video')}", callback_data="service_photographer")],
-        [InlineKeyboardButton(text=f"💄 {_('Stylists and make-up artists')}", callback_data="service_stylist")],
-        [InlineKeyboardButton(text=f"🍽 {_('Restaurants and home cooking')}", callback_data="service_restaurant")],
-        [InlineKeyboardButton(text=f"💍 {_('Wedding ceremonies')}", callback_data="service_wedding")],
-        [InlineKeyboardButton(text=f"👗 {_('Dress rental')}", callback_data="service_dress_rental")],
-        [InlineKeyboardButton(text=f"🕴 {_('Your man / Fixer')}", callback_data="service_fixer")],
-        [InlineKeyboardButton(text=f"✉️ {_('Individual requests')}", callback_data="service_individual")],
-        [InlineKeyboardButton(text=f"⬅️ {_('Back')}", callback_data="back_to_main_menu")]
+        [InlineKeyboardButton(text=f"🚖 {_('Taxi & Cabriolets')}", callback_data="service_taxi")]
     ])
 
 
