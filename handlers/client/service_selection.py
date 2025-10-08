@@ -89,10 +89,10 @@ async def handle_cuba_services_choice(callback: CallbackQuery, _: dict):
 @router.callback_query(F.data.startswith("service_"))
 async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: dict):
     service_map = {
-        "service_taxi": _("Taxi"),
+        "service_taxi": _("Taxi & Cabriolets"),
         "service_retro": _("Retro car"),
-        "service_guide": _("Guide"),
-        "service_photographer": _("Photographer"),
+        "service_guide": _("Excursions/Guides"),
+        "service_photographer": _("Photo/Video"),
         "service_wedding": _("Wedding Ceremonies"),
     }
     selected_service = service_map.get(callback.data, callback.data)
