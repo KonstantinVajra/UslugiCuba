@@ -96,7 +96,7 @@ HOTEL_EMOJIS: dict[str, str] = {
     "Villa Cuba": "🇨🇺",
     "Villa Tortuga": "🐢",
 }
-HOTEL_NAMES = list(HOTEL_EMOJIS.keys())  # Рядом с HOTEL_EMOJIS
+HOTEL_NAMES = list(HOTEL_EMOJIS.keys())
 
 # --- УНИКАЛЬНЫЕ ЭМОДЗИ ДЛЯ КАЖДОГО РЕСТОРАНА ---
 RESTAURANT_EMOJIS: dict[str, str] = {
@@ -161,4 +161,3 @@ def restaurant_list_keyboard(prefix: str) -> InlineKeyboardMarkup:
     ]
     keyboard = chunk_buttons(buttons, 2)
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
