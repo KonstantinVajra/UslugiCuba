@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from states.client_states import OrderServiceState
 from keyboards.client import (
     service_inline_keyboard,
+    cuba_services_keyboard,
     date_selection_keyboard,
     hour_selection_keyboard,
     minute_selection_keyboard,
@@ -79,6 +80,12 @@ async def start_order(message: Message, state: FSMContext, _: dict):
     await state.set_state(OrderServiceState.choosing_service)
 
 
+@router.callback_query(F.data == "cuba_services")
+async def handle_cuba_services_choice(callback: CallbackQuery, _: dict):
+    await callback.message.edit_text(_("choose_service"), reply_markup=cuba_services_keyboard(_))
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("service_"))
 async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: dict):
     service_map = {
@@ -86,6 +93,7 @@ async def handle_service_choice(callback: CallbackQuery, state: FSMContext, _: d
         "service_retro": _("Retro car"),
         "service_guide": _("Guide"),
         "service_photographer": _("Photographer"),
+        "service_wedding": _("Wedding Ceremonies"),
     }
     selected_service = service_map.get(callback.data, callback.data)
     await state.update_data(service=selected_service)

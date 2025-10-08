@@ -45,7 +45,16 @@ def minute_selection_keyboard() -> InlineKeyboardMarkup:
 
 def service_inline_keyboard(_) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"🚖 {_('Taxi & Cabriolets')}", callback_data="service_taxi")]
+        [InlineKeyboardButton(text=f"🚖 {_('Taxi & Cabriolets')}", callback_data="service_taxi")],
+        [InlineKeyboardButton(text=f"🇨🇺 {_('Cuba Services')}", callback_data="cuba_services")]
+    ])
+
+
+def cuba_services_keyboard(_) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"📸 {_('Photo/Video')}", callback_data="service_photographer")],
+        [InlineKeyboardButton(text=f"🗺️ {_('Excursions/Guides')}", callback_data="service_guide")],
+        [InlineKeyboardButton(text=f"💒 {_('Wedding Ceremonies')}", callback_data="service_wedding")]
     ])
 
 
