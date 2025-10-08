@@ -53,3 +53,18 @@ msgstr "¡Su pedido ha sido confirmado! Un proveedor será asignado pronto."
 
 msgid "order_cancelled"
 msgstr "Su pedido ha sido cancelado."
+
+msgid "Taxi & Cabriolets"
+msgstr "Taxi y Descapotables"
+
+msgid "Cuba Services"
+msgstr "Servicios en Cuba"
+
+msgid "Photo/Video"
+msgstr "Foto/Video"
+
+msgid "Excursions/Guides"
+msgstr "Excursiones/Guías"
+
+msgid "Wedding Ceremonies"
+msgstr "Ceremonias de Boda"

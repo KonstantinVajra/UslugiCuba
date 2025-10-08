@@ -53,3 +53,18 @@ msgstr "Your order has been confirmed! A provider will be assigned shortly."
 
 msgid "order_cancelled"
 msgstr "Your order has been cancelled."
+
+msgid "Taxi & Cabriolets"
+msgstr "Taxi & Cabriolets"
+
+msgid "Cuba Services"
+msgstr "Cuba Services"
+
+msgid "Photo/Video"
+msgstr "Photo/Video"
+
+msgid "Excursions/Guides"
+msgstr "Excursions/Guides"
+
+msgid "Wedding Ceremonies"
+msgstr "Wedding Ceremonies"

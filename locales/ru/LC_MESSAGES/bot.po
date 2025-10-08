@@ -90,4 +90,18 @@ msgstr "Подтвердите дату и время"
 msgid "Today"
 msgstr "Сегодня"
 
+msgid "Taxi & Cabriolets"
+msgstr "Такси и Кабриолеты"
+
+msgid "Cuba Services"
+msgstr "Услуги Кубы"
+
+msgid "Photo/Video"
+msgstr "Фото/Видео"
+
+msgid "Excursions/Guides"
+msgstr "Экскурсии/Гиды"
+
+msgid "Wedding Ceremonies"
+msgstr "Свадебные церемонии"
 
