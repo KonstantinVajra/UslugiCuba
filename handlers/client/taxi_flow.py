@@ -403,6 +403,8 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
 
     # --- Публикация в канал ---
     try:
+        # В `order_data` передаем `price_quote` из `data`, а не `price` из локальной переменной
+        # чтобы гарантировать, что мы передаем то же значение, что и в `create_order`
         await publish_order(
             bot=callback.bot,
             order_data={
@@ -412,7 +414,7 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
                 "dropoff_text": drop_name,
                 "when_hhmm": when_hhmm or "сейчас",
                 "pax": int(data.get("pax") or 1),
-                "price_quote": price,
+                "price_quote": data.get("price_quote"),
             },
         )
     except Exception:

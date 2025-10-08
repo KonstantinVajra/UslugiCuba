@@ -111,7 +111,7 @@ async def create_order(order: dict) -> int:
             }
             meta_json = json.dumps(meta_payload, ensure_ascii=False, default=str)
 
-            # 5. Insert order with correct columns
+            # 5. Insert order with correct columns from schema
             row = await con.fetchrow(
                 """
                 INSERT INTO uslugicuba.orders(
