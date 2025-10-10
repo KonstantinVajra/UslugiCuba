@@ -18,6 +18,7 @@ import logging
 import html
 import re
 import json
+from datetime import datetime
 
 router = Router()
 log = logging.getLogger("taxi_flow")
@@ -201,6 +202,14 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer("❗ Не удалось собрать маршрут. Пожалуйста, начните заново.")
         return
 
+    datetime_str = data.get("datetime")
+    datetime_obj = None
+    if isinstance(datetime_str, str):
+        try:
+            datetime_obj = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+        except ValueError:
+            log.warning(f"Could not parse datetime string: {datetime_str}")
+
     order_payload = {
         "client_tg_id": callback.from_user.id,
         "username": callback.from_user.username,
@@ -208,7 +217,7 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
         "service": data.get("service"),
         "pickup": pickup_dict,
         "dropoff": dropoff_dict,
-        "datetime": data.get("datetime"),
+        "datetime": datetime_obj,
         "pax": data.get("pax", 1),
         "price_quote": data.get("price_quote"),
         "price_payload": data.get("price_payload"),
