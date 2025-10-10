@@ -87,12 +87,12 @@ async def create_order(order: dict) -> int:
         try:
             row = await con.fetchrow(
                 """
-                INSERT INTO svc."order"(
+                INSERT INTO svc.orders(
                   status, service, client_tg_id, lang,
                   pickup_text, dropoff_text, when_dt, pax,
                   options, price_quote, currency, price_payload
                 )
-                VALUES ('confirmed','taxi', $1, COALESCE($2,'ru'),
+                VALUES ('confirmed', $10, $1, COALESCE($2,'ru'),
                         $3, $4, $5, COALESCE($6, 1),
                         $7::jsonb, $8, 'USD', $9::jsonb)
                 RETURNING id
@@ -106,6 +106,7 @@ async def create_order(order: dict) -> int:
                 options_json,                         # jsonb
                 order.get("price_quote"),             # число/Decimal — как у тебя заведено
                 payload_json,                         # jsonb
+                order.get("service", "taxi"),         # $10 - default to 'taxi'
             )
             if not row or "id" not in row:
                 raise RuntimeError("INSERT returned no id")

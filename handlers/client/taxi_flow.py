@@ -371,6 +371,7 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
         order_id = await create_order({
             "client_tg_id": callback.from_user.id,
             "lang": getattr(callback.from_user, "language_code", "ru"),
+            "service": data.get("service"),
             "pickup_text": pickup_name,
             "dropoff_text": drop_name,
             "when_dt": None,  # MVP: hh:mm храним в options
