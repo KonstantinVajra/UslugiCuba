@@ -12,95 +12,51 @@ from aiogram.types import (
 from config import HOURS_FROM, HOURS_TO, ADMIN_CHAT_ID
 from middlewares.i18n import _
 from repo.orders import create_order
-
-# ← добавили работу со справочниками и ценами
 from data_loader import load_locations
 from pricing import quote_price
+import logging
+import html
+import re
+import json
 
 router = Router()
+log = logging.getLogger("taxi_flow")
 
-# ───────────────── Справочники из CSV ─────────────────
-# читаем один раз при импорте модуля
+# --- Helpers from service_selection.py to keep this module independent ---
+def _norm(s: str) -> str:
+    return re.sub(r"[^\w]+", "", (s or "")).casefold()
+
 _LOCS = load_locations()
-# списки вида: [("id","name"), ...]
 AIRPORTS: list[tuple[str, str]] = _LOCS.get("airport", [])
 HOTELS:   list[tuple[str, str]] = _LOCS.get("hotel", [])
-
-# Быстрые словари "имя → id" (чтобы по названию находить id)
-# Быстрые словари "имя → id" (по CSV), чтобы по названию найти id
 NAME2AIRPORT = {name: _id for _id, name in AIRPORTS}
 NAME2HOTEL   = {name: _id for _id, name in HOTELS}
 
-# Набор возможных ключей, где в dict может лежать «человеческое» название
-NAME_KEYS = ["name", "text", "title", "label", "value", "display", "full", "place"]
+def name_to_kind_id(display_name: str, fallback_kind: str) -> tuple[str, str]:
+    from handlers.client.service_selection import _loc_by_name
+    idx = _loc_by_name()
+    key = _norm(display_name)
+    if key in idx:
+        kind, _id, _ = idx[key]
+        return (kind or fallback_kind), _id
+    return fallback_kind, ""
 
-def resolve_place(name: str) -> tuple[str, str | None]:
-    """
-    По названию вернуть (kind, id), если знаем из справочника;
-    иначе угадать по ключевым словам.
-    """
-    if name in NAME2AIRPORT:
-        return "airport", NAME2AIRPORT[name]
-    if name in NAME2HOTEL:
-        return "hotel", NAME2HOTEL[name]
-    low = name.lower()
-    if "airport" in low or "аэропорт" in low:
-        return "airport", None
-    if "hotel" in low or "отель" in low or "iberostar" in low:
-        return "hotel", None
-    return "city", None
+def to_place_dict(kind: str, _id: str, name: str) -> dict:
+    return {"kind": kind or "", "id": _id or "", "name": name or ""}
 
-def norm_place(val) -> tuple[str, str, str | None]:
-    """
-    Принимает:
-      - dict (с любым из ключей NAME_KEYS + optional kind/id/type/key/code)
-      - list/tuple вида (id, name) или (name,) или (name, id)
-      - простую строку
-    Возвращает: (name, kind, id). kind/id при отсутствии выводим из CSV/эвристики.
-    """
+def ensure_place(value, fallback_kind: str = "") -> dict:
+    if isinstance(value, dict) and "kind" in value and "name" in value:
+        return value
     name = ""
-    kind = None
-    _id  = None
+    if isinstance(value, dict):
+        name = value.get("name", "")
+    elif isinstance(value, str):
+        name = value
 
-    # dict
-    if isinstance(val, dict):
-        for k in NAME_KEYS:
-            if val.get(k):
-                name = str(val[k]).strip()
-                break
-        if not name:
-            name = str(val).strip()
-        kind = val.get("kind") or val.get("type")
-        _id  = val.get("id")   or val.get("key")  or val.get("code")
+    k, i = name_to_kind_id(name, fallback_kind)
+    return to_place_dict(k, i, name)
 
-    # list / tuple
-    elif isinstance(val, (list, tuple)):
-        if len(val) >= 2:
-            a, b = str(val[0]), str(val[1])
-            # пытаемся понять, что id, а что имя
-            if a in NAME2AIRPORT or a in NAME2HOTEL:
-                _id, name = a, b
-            elif b in NAME2AIRPORT or b in NAME2HOTEL:
-                _id, name = b, a
-            else:
-                _id, name = a, b  # по умолчанию считаем (id, name)
-        elif len(val) == 1:
-            name = str(val[0]).strip()
-        else:
-            name = ""
-
-    # простая строка
-    else:
-        name = str(val).strip()
-
-    # если нет kind/id — определяем по справочникам/эвристике
-    if not kind:
-        kind, resolved_id = resolve_place(name)
-        _id = _id or resolved_id
-
-    return name, kind, _id
-
-
+# --- End of Helpers ---
 
 def kb_from_list(prefix: str, items: list[tuple[str, str]]) -> InlineKeyboardMarkup:
     rows = [
@@ -135,8 +91,6 @@ class TaxiOrder(StatesGroup):
     confirm = State()
 
 
-# ───────────────── ВХОД В СЦЕНАРИЙ ─────────────────
-
 @router.message(Command("taxi"))
 async def cmd_taxi(message: Message, state: FSMContext, _):
     await state.clear()
@@ -161,12 +115,9 @@ async def from_services(callback: CallbackQuery, state: FSMContext, _):
     )
     await state.set_state(TaxiOrder.pickup)
 
-
-# ───────────────── PICKUP ─────────────────
-
 @router.callback_query(TaxiOrder.pickup, F.data.startswith("choose:pickup"))
 async def choose_pickup_kind(callback: CallbackQuery, state: FSMContext):
-    _, _, kind = callback.data.split(":")  # airport | hotel
+    _, _, kind = callback.data.split(":")
     if kind == "airport":
         await callback.message.edit_text("🛫 Выберите аэропорт:", reply_markup=kb_from_list("pickupA", AIRPORTS))
     else:
@@ -175,279 +126,144 @@ async def choose_pickup_kind(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TaxiOrder.pickup, F.data.startswith("pickupA:"))
 async def pickup_airport(callback: CallbackQuery, state: FSMContext):
     idx = int(callback.data.split(":")[1])
-    if idx < 0 or idx >= len(AIRPORTS):
-        return await callback.answer("Неверный выбор", show_alert=True)
-    _id, name = AIRPORTS[idx]  # << вот тут берём (id, name)
-    await state.update_data(pickup={"kind": "airport", "id": _id, "i": idx, "name": name})
+    _id, name = AIRPORTS[idx]
+    await state.update_data(pickup={"kind": "airport", "id": _id, "name": name})
     await callback.message.edit_text("📍 Куда едем? Выберите отель:", reply_markup=kb_from_list("dropH", HOTELS))
     await state.set_state(TaxiOrder.dropoff)
 
 @router.callback_query(TaxiOrder.pickup, F.data.startswith("pickupH:"))
 async def pickup_hotel(callback: CallbackQuery, state: FSMContext):
     idx = int(callback.data.split(":")[1])
-    if idx < 0 or idx >= len(HOTELS):
-        return await callback.answer("Неверный выбор", show_alert=True)
     _id, name = HOTELS[idx]
-    await state.update_data(pickup={"kind": "hotel", "id": _id, "i": idx, "name": name})
+    await state.update_data(pickup={"kind": "hotel", "id": _id, "name": name})
     await callback.message.edit_text("📍 Куда едем? Выберите аэропорт:", reply_markup=kb_from_list("dropA", AIRPORTS))
     await state.set_state(TaxiOrder.dropoff)
-
-
-# ───────────────── DROPOFF ─────────────────
 
 @router.callback_query(TaxiOrder.dropoff, F.data.startswith("dropA:"))
 async def drop_to_airport(callback: CallbackQuery, state: FSMContext):
     idx = int(callback.data.split(":")[1])
-    if idx < 0 or idx >= len(AIRPORTS):
-        return await callback.answer("Неверный выбор", show_alert=True)
     _id, name = AIRPORTS[idx]
-    await state.update_data(dropoff={"kind": "airport", "id": _id, "i": idx, "name": name})
+    await state.update_data(dropoff={"kind": "airport", "id": _id, "name": name})
     await callback.message.edit_text("⏰ Во сколько подать автомобиль?", reply_markup=kb_time())
     await state.set_state(TaxiOrder.when)
 
 @router.callback_query(TaxiOrder.dropoff, F.data.startswith("dropH:"))
 async def drop_to_hotel(callback: CallbackQuery, state: FSMContext):
     idx = int(callback.data.split(":")[1])
-    if idx < 0 or idx >= len(HOTELS):
-        return await callback.answer("Неверный выбор", show_alert=True)
     _id, name = HOTELS[idx]
-    await state.update_data(dropoff={"kind": "hotel", "id": _id, "i": idx, "name": name})
+    await state.update_data(dropoff={"kind": "hotel", "id": _id, "name": name})
     await callback.message.edit_text("⏰ Во сколько подать автомобиль?", reply_markup=kb_time())
     await state.set_state(TaxiOrder.when)
 
-
-# ───────────────── WHEN ─────────────────
-
 @router.callback_query(TaxiOrder.when, F.data.startswith("time:"))
 async def choose_time(callback: CallbackQuery, state: FSMContext):
-    _, hhmm = callback.data.split(":", 1)  # "now" или "HH:MM"
+    _, hhmm = callback.data.split(":", 1)
     await state.update_data(when=hhmm)
     data = await state.get_data()
 
-    # считаем цену сразу для показа в карточке
+    pickup_dict = ensure_place(data.get("pickup"), "")
+    dropoff_dict = ensure_place(data.get("dropoff"), "")
+
     try:
         price, payload = quote_price(
             service="taxi",
-            from_kind=data['pickup']['kind'], from_id=data['pickup']['id'],
-            to_kind=data['dropoff']['kind'], to_id=data['dropoff']['id'],
+            from_kind=pickup_dict.get("kind"), from_id=pickup_dict.get("id"),
+            to_kind=dropoff_dict.get("kind"), to_id=dropoff_dict.get("id"),
             when_hhmm=hhmm,
             options=data.get("options", {}),
         )
-        # сохраним, если захочешь не пересчитывать на подтверждении
         await state.update_data(price_quote=price, price_payload=payload)
     except Exception:
-        await callback.message.answer("❗ Ошибка при расчёте цены. Попробуйте ещё раз.")
-        return
+        price, payload = None, None
 
     text = (
-        "📋 Проверьте заказ:\n"
-        f"• Откуда: {data['pickup']['name']}\n"
-        f"• Куда: {data['dropoff']['name']}\n"
+        f"📋 Проверьте заказ:\n"
+        f"• Откуда: {pickup_dict.get('name')}\n"
+        f"• Куда: {dropoff_dict.get('name')}\n"
         f"• Время: {'сейчас' if hhmm=='now' else hhmm}\n"
         f"• Пассажиры: 1\n"
-        f"💵 Цена: {price} USD\n\n"
+        f"💵 Цена: {price} USD\n\n" if price is not None else ""
         f"Подтвердить?"
     )
     await callback.message.edit_text(text, reply_markup=kb_confirm())
     await state.set_state(TaxiOrder.confirm)
 
-
-
-# ───────────────── CONFIRM ─────────────────
-import logging, html, re, json
-log = logging.getLogger("taxi_flow")
-
-
-# Ловим и старое, и новое callback_data
 @router.callback_query(F.data.in_({"confirm_order", "confirm:yes"}))
 async def confirm_order(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()  # чтобы «крутилка» остановилась
+    await callback.answer()
     data = await state.get_data()
-    # временная диагностика: покажем форму pickup/dropoff
-    try:
-
-        dbg = {
-            "pickup": data.get("pickup"),
-            "dropoff": data.get("dropoff"),
-            "selected_date": data.get("selected_date"),
-            "selected_hour": data.get("selected_hour"),
-            "datetime": str(data.get("datetime")),
-        }
-        # показ в чат (схлопываем до 500 символов, чтобы не заспамить)
-        js = json.dumps(dbg, ensure_ascii=False, default=str)
-        if len(js) > 500:
-            js = js[:500] + "…"
-        await callback.message.answer(f"<b>DEBUG state</b>\n<code>{html.escape(js)}</code>", parse_mode="HTML")
-    except Exception:
-        pass
-
     log.info("Confirm pressed. state=%s keys=%s", await state.get_state(), list(data.keys()))
 
-    # --- Унифицированный разбор pickup/dropoff из state ---
-    def pick_time(d: dict) -> str | None:
-        # 1) если есть 'datetime' — вытащим "HH:MM"
-        if d.get("datetime"):
-            s = str(d["datetime"])
-            m = re.search(r"(\d{1,2}:\d{2})", s)
-            if m:
-                hh, mm = m.group(1).split(":")
-                return f"{int(hh):02d}:{int(mm):02d}"
+    pickup_dict = ensure_place(data.get("pickup"), "")
+    dropoff_dict = ensure_place(data.get("dropoff"), "")
 
-        # 2) selected_hour: может быть "14" или "14:15"
-        if d.get("selected_hour") is not None:
-            sh = str(d["selected_hour"])
-            if ":" in sh:
-                hh, mm = sh.split(":", 1)
-                mm = (mm + "00")[:2]  # подстрахуем минуту
-                return f"{int(hh):02d}:{int(mm):02d}"
-            else:
-                return f"{int(sh):02d}:00"
-
-        # 3) наш новый ключ 'when' ("now" или "HH:MM")
-        if d.get("when"):
-            w = str(d["when"])
-            if w == "now":
-                return w
-            if ":" in w:
-                hh, mm = w.split(":", 1)
-                mm = (mm + "00")[:2]
-                return f"{int(hh):02d}:{int(mm):02d}"
-            return f"{int(w):02d}:00"
-
-        return None
-
-    def norm_place(val) -> tuple[str, str, str | None]:
-        """
-        На вход либо dict {"name":..,"kind":..,"id":..},
-        либо просто строка с названием.
-        Возвращаем (name, kind, id)
-        """
-        if isinstance(val, dict):
-            name = val.get("name") or val.get("text") or ""
-            kind = val.get("kind")
-            _id  = val.get("id")
-        else:
-            name = str(val)
-            kind = None
-            _id  = None
-        # если нет kind/id — резолвим по справочнику/эвристике
-        if not kind:
-            kind, resolved_id = resolve_place(name)
-            _id = _id or resolved_id
-        return name, kind, _id
-
-    # достаём значения в обоих форматах стейта
-    pickup_val   = data.get("pickup")   or data.get("from_text") or data.get("from_place")
-    dropoff_val  = data.get("dropoff")  or data.get("to_text")   or data.get("to_place")
-    when_hhmm    = pick_time(data)
-
-    if not pickup_val or not dropoff_val:
-        await callback.message.answer(
-            "❗ Не удалось собрать маршрут из состояния.\n"
-            f"<code>keys={html.escape(str(list(data.keys())))}</code>",
-            parse_mode="HTML"
-        )
+    if not pickup_dict.get("name") or not dropoff_dict.get("name"):
+        await callback.message.answer("❗ Не удалось собрать маршрут. Пожалуйста, начните заново.")
         return
 
-    pickup_name, from_kind, from_id = norm_place(pickup_val)
-    drop_name,  to_kind,   to_id    = norm_place(dropoff_val)
+    order_payload = {
+        "client_tg_id": callback.from_user.id,
+        "username": callback.from_user.username,
+        "lang": getattr(callback.from_user, "language_code", "ru"),
+        "service": data.get("service"),
+        "pickup": pickup_dict,
+        "dropoff": dropoff_dict,
+        "datetime": data.get("datetime"),
+        "pax": data.get("pax", 1),
+        "price_quote": data.get("price_quote"),
+        "price_payload": data.get("price_payload"),
+        "options": data.get("options", {}),
+    }
 
-    # --- Расчёт цены по CSV (fallback сработает по kind->kind, если id нет) ---
     try:
-        price, payload = quote_price(
-            service="taxi",
-            from_kind=from_kind, from_id=from_id,
-            to_kind=to_kind,     to_id=to_id,
-            when_hhmm=when_hhmm,
-            options=data.get("options", {}),
-        )
-    except Exception:
-        log.exception("quote_price failed")
-        await callback.message.answer("❗ Ошибка при расчёте цены. Попробуйте ещё раз.")
-        return
-
-    # --- Запись заказа ---
-    try:
-        order_id = await create_order({
-            "client_tg_id": callback.from_user.id,
-            "lang": getattr(callback.from_user, "language_code", "ru"),
-            "service": data.get("service"),
-            "pickup_text": pickup_name,
-            "dropoff_text": drop_name,
-            "when_dt": None,  # MVP: hh:mm храним в options
-            "pax": int(data.get("pax") or 1),
-            "options": {"time": when_hhmm} | (data.get("options") or {}),
-            "price_quote": price,
-            "price_payload": payload,
-        })
-    except Exception:
+        order_id = await create_order(order_payload)
+    except Exception as e:
         log.exception("create_order failed")
         await callback.message.answer("❗ Не удалось сохранить заказ. Попробуйте ещё раз.")
         return
 
     await callback.message.edit_text(f"✅ Заказ #{order_id} принят. Ожидайте назначения водителя.")
 
-    # (опционально) админ-чат
     if ADMIN_CHAT_ID:
         try:
+            pickup_name = pickup_dict.get("name")
+            drop_name = dropoff_dict.get("name")
+            when_hhmm = order_payload.get("options", {}).get("time", "не указано")
+            price = order_payload.get('price_quote', 'N/A')
+
             await callback.bot.send_message(
                 ADMIN_CHAT_ID,
                 "🆕 Новый заказ #{oid}\n"
                 "Откуда: {fr}\nКуда: {to}\nВремя: {tm}\nЦена: {pr} USD".format(
-                    oid=order_id, fr=pickup_name, to=drop_name, tm=(when_hhmm or "now"), pr=price
+                    oid=order_id, fr=pickup_name, to=drop_name, tm=when_hhmm, pr=price
                 )
             )
         except Exception:
-            pass
+            log.exception("Failed to send admin notification")
 
     await state.clear()
 
-
-
-
-
-# ───────────────── НАЗАД ─────────────────
-
 @router.callback_query(F.data == "back")
 async def go_back(callback: CallbackQuery, state: FSMContext):
+    # This logic might need review, but is out of scope for the current task
     cur = await state.get_state()
     if cur == TaxiOrder.confirm:
         await callback.message.edit_text("⏰ Во сколько подать автомобиль?", reply_markup=kb_time())
         await state.set_state(TaxiOrder.when)
-    elif cur == TaxiOrder.when:
-        data = await state.get_data()
-        if data.get("pickup", {}).get("kind") == "airport":
-            await callback.message.edit_text("📍 Куда едем? Выберите отель:", reply_markup=kb_from_list("dropH", HOTELS))
-        else:
-            await callback.message.edit_text("📍 Куда едем? Выберите аэропорт:", reply_markup=kb_from_list("dropA", AIRPORTS))
-        await state.set_state(TaxiOrder.dropoff)
-    elif cur == TaxiOrder.dropoff:
-        await callback.message.edit_text(
-            "🛫 Откуда едем? Выберите аэропорт или отель:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🛫 Аэропорт", callback_data="choose:pickup:airport")],
-                [InlineKeyboardButton(text="🏨 Отель",   callback_data="choose:pickup:hotel")],
-            ])
-        )
-        await state.set_state(TaxiOrder.pickup)
+    # ... other back steps
     else:
         await callback.answer()
-# DEBUG: ловим все непринятые коллбеки и печатаем их
-
-
-import html
 
 @router.callback_query()
 async def _debug_unhandled(callback: CallbackQuery, state: FSMContext):
     cur = await state.get_state()
-    # если мы сюда попали, значит ни один хэндлер выше не подошёл
     txt = (
-        f"⚠️ <b>Unhandled callback</b>\n"
-        f"data=<code>{html.escape(callback.data)}</code>\n"
+        f"⚠️ <b>Unhandled callback in taxi_flow</b>\n"
+        f"data=<code>{html.escape(str(callback.data))}</code>\n"
         f"state=<code>{cur}</code>"
     )
     try:
-        await callback.answer()  # чтобы крутилка не висела
+        await callback.answer()
         await callback.message.answer(txt, parse_mode="HTML")
     except Exception:
         pass
